@@ -1,0 +1,244 @@
+<isscript>
+    var dengageUtils = require('*/cartridge/scripts/dengage/utils');
+</isscript>
+<isscript>
+    if (pdict.category) {
+        var dengageCategories = [];
+        var dengageCurrentCategory = pdict.category;
+        do {
+            if (dengageCurrentCategory.displayName)
+                dengageCategories.push(dengageCurrentCategory.displayName);
+            dengageCurrentCategory = dengageCurrentCategory.parent;
+        } while (dengageCurrentCategory);
+        dengageCategories = dengageCategories.reverse();
+        var dengageCategoryPath = dengageCategories.join(" > ");
+    }
+</isscript>
+<iscomment>
+    this template should be included near the end of the html body on all pages.
+    it calls the Dengage JS SDK files into the page, and calls the Dengage-Event controller via
+    remote include for pages whose controllers are cached OOTB
+</iscomment>
+<!--- TEMPLATENAME: dengage_snippets.isml --->
+<script>
+    console.log('Dengage snippets loaded!');
+    var siteID = $('#dotdigital-currentSiteId');
+    var siteName = '';
+    if (siteID &&
+        siteID.attr('data-siteid')) {
+        siteName = siteID.attr('data-siteid');
+    }
+</script>
+<isif condition="${dengageUtils.dengageEnabled}">
+    <script>
+        !function(e, a, n, d, g) {
+            e.dengage = e.dengage || function() {
+                (e.dengage.q = e.dengage.q || []).push(arguments)
+            }, d = a.getElementsByTagName("head")[0], (g = a.createElement("script")).async = 1, g.src = "https://eu-pcdn.dengage.com/p/push/${dengageUtils.dnAccountId}/${dengageUtils.dnAppGuid}/dengage_sdk.js", d.appendChild(g)
+        }(window, document);
+        dengage('initialize');
+    </script>
+    <isif condition="${session.customerAuthenticated === true}">
+        <script>
+            dengage("setContactKey", "${session.customer.profile.email}");
+        </script>
+    </isif>
+    <script>
+        var pageElement = document.querySelector('.page');
+        var pageAction = '';
+        if (pageElement) {
+            pageAction = pageElement.getAttribute('data-action');
+        }
+        var isHomepage = document.querySelector('.homepage') != null;
+        var isCheckout = window.location.pathname.split("/").pop() == 'checkout';
+        if (pageAction == 'Product-Show') {
+            let salePrice = ${product.price.sales.value};
+            let listPrice = ${product.price.list.value};
+            let dengageUnitPrice = listPrice ? listPrice : salePrice;
+            let dengageDiscountedPrice = salePrice && salePrice < listPrice ? salePrice : '';
+            let dengageProductAvailability = 1; 
+            <isif condition = "${!product.readyToOrder}">
+                dengageProductAvailability = 0; 
+             </isif>
+            dengage("ec:pageView", {
+                page_type: "product",
+                product_id: "${request.httpParameterMap.pid.stringValue}",
+                price: dengageUnitPrice,
+                discounted_price: dengageDiscountedPrice,
+                stock_count: dengageProductAvailability
+            });
+        } else if (pageAction == 'Search-Show') {
+            var cgId = '${request.httpParameterMap.cgid.stringValue}';
+            if (cgId && cgId != 'null') {
+                let dengageCategoryPath = "${dengageCategoryPath}";
+                dengageCategoryPath =
+                    dengageCategoryPath.replace('&gt;', '>');
+                dengage("ec:pageView", {
+                    page_type: "category",
+                    category_id: cgId,
+                    category_path: dengageCategoryPath
+                });
+            } else {
+                var searchResultCountElement = document.querySelector('.search-result-count');
+                if (searchResultCountElement) {
+                    var searchResultCount = searchResultCountElement.innerHTML.replace('Results for', '').trim();
+                    var urlParams = new URLSearchParams(window.location.search);
+                    var searchQuery = urlParams.get('q');
+                    dengage("ec:search", {
+                        keywords: searchQuery,
+                        result_count: searchResultCount,
+                        filters: ''
+                    });
+                }
+            }
+        } else if (pageAction == 'Home-Show' || isHomepage) {
+            dengage("ec:pageView", {
+                page_type: "home"
+            });
+        } else if (isCheckout) {
+            var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
+            $.ajax({
+                url: url,
+                type: 'get',
+                dataType: 'json',
+                success: function(data) {
+                    let checkoutItems = [];
+                    $.each(data.items, function(index, val) {
+                        let discountedPrice = unitPrice = val.price.sales.value;
+                        if (val.price.list) 
+                            unitPrice = val.price.list.value;
+                        if (discountedPrice >= unitPrice)
+                            discountedPrice = '';
+                        checkoutItems.push({
+                            product_id: val.id,
+                            product_variant_id: '',
+                            quantity: val.quantity,
+                            unit_price: unitPrice,
+                            discounted_price: discountedPrice
+                        });
+                    });
+                    dengage("ec:beginCheckout", {
+                        cartItems: checkoutItems
+                    });
+                }
+            });
+        } else {
+            dengage("ec:pageView", {
+                page_type: "other"
+            });
+        }
+    </script>
+    <script>
+        $(document).ready(function() {
+            function convertDataToJSON(data) {
+                var urlParams = new
+                URLSearchParams(data);
+                var result = {};
+                for (var pair of urlParams.entries()) {
+                    result[pair[0]] = decodeURIComponent(pair[1]);
+                }
+                if (result.options) {
+                    result.options =
+                        JSON.parse(result.options);
+                }
+                return result;
+            }
+            $(document).ajaxComplete(function(event, xhr,
+                options) {
+                if (options.url.includes("Cart-AddProduct")) {
+                    let data = convertDataToJSON(options.data);
+                    let productId = data.pid;
+                    let quantity = data.quantity;
+                    var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
+                    $.ajax({
+                        url: url,
+                        type: 'get',
+                        dataType: 'json',
+                        success: function(data) {
+                            $.each(data.items, function(index, val) {
+                                if (val.id == productId) {
+                                    let discountedPrice = unitPrice = val.price.sales.value;
+                                    if (val.price.list) unitPrice = val.price.list.value;
+                                    if (discountedPrice >= unitPrice)
+                                        discountedPrice = '';
+                                    dengage('ec:addToCart', {
+                                        product_id: productId,
+                                        product_variant_id: '',
+                                        quantity: quantity,
+                                        unit_price: unitPrice,
+                                        discounted_price: discountedPrice
+                                    });
+                                }
+                            });
+                        }
+                    });
+                } else if (options.url.includes("Cart-RemoveProductLineItem")) {
+                    let queryParams =
+                        options.url.substr(options.url.indexOf("?") + 1);
+                    let data = convertDataToJSON(queryParams);
+                    let productId = data.pid;
+                    dengage('ec:removeFromCart', {
+                        product_id: productId,
+                        product_variant_id: '',
+                        quantity: 0
+                    });
+                } else if (options.url.includes("Cart-UpdateQuantity")) {
+                    let queryParams =
+                        options.url.substr(options.url.indexOf("?") + 1);
+                    let data = convertDataToJSON(queryParams);
+                    let productId = data.pid;
+                    let quantity = data.quantity;
+                    let previousQuantity = data.prevQty;
+                    $.ajax({
+                        url: url,
+                        type: 'get',
+                        dataType: 'json',
+                        success: function(data) {
+                            $.each(data.items, function(index,
+                                val) {
+                                if (val.id == productId) {
+                                    let discountedPrice = unitPrice = val.price.sales.value;
+                                    if (val.price.list) unitPrice = val.price.list.value;
+                                    let eventType = '';
+                                    if (previousQuantity > quantity) eventType = 'ec:removeFromCart';
+                                    else if (previousQuantity < quantity)
+                                        eventType = 'ec:addToCart';
+                                    dengage(eventType, {
+                                        product_id: productId,
+                                        product_variant_id: '',
+                                        quantity: quantity,
+                                        unit_price: unitPrice,
+                                        discounted_price: discountedPrice
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+    <isif condition="${pdict.currentOrder}">
+        <script>
+            dengage("setContactKey", "${pdict.currentOrder.customerEmail}");
+            let orderObj = {
+                order_id: "${pdict.currentOrder.orderNo}",
+                item_count: ${pdict.currentOrder.productQuantityTotal},
+                total_amount: ${pdict.currentOrder.totalGrossPrice.value},
+                payment_method: "${pdict.currentOrder.paymentInstruments.length ? pdict.currentOrder.paymentInstruments[0].paymentMethod : ''}",
+                shipping: ${pdict.currentOrder.adjustedShippingTotalPrice.value},
+                coupon_code: "${pdict.currentOrder.couponLineItems.length ? pdict.currentOrder.couponLineItems[0].couponCode : ''}"
+            };
+            var cartItems = [];
+            <isloop iterator="${pdict.currentOrder.productLineItems}" alias="lineItem" status="orderItemsLoop">
+                cartItems[${orderItemsLoop.index}] = {
+                        product_id: "${lineItem.parent ? lineItem.parent.productID : lineItem.productID}",
+                        product_variant_id: "${lineItem.parent ? lineItem.productID : ''}",
+                        quantity: ${lineItem.quantity.value},
+                        unit_price: ${lineItem.quantity.value > 0 ? lineItem.adjustedPrice.value / lineItem.quantity.value : lineItem.adjustedPrice.value},
+                        // discounted_price: ${lineItem.quantity.value > 0 ? lineItem.adjustedPrice.value / lineItem.quantity.value : lineItem.adjustedPrice.value}
+                    }
+            </isloop>
+            orderObj.cartItems = cartItems; dengage("ec:order", orderObj); </script>
+    </isif>
+</isif>

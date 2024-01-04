@@ -1,0 +1,7 @@
+<isscript>
+    var dengageUtils = require('*/cartridge/scripts/dengage/utils');
+</isscript>
+<!--- TEMPLATENAME: dengage_service_worker_snippet.isml --->
+<isif condition="${dengageUtils.dengageEnabled}">
+    ${dengageUtils.dnServiceWorker}
+</isif>

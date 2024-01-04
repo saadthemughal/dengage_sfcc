@@ -1,0 +1,96 @@
+{
+    "step-types": {
+        "script-module-step": [
+            {
+                "@type-id": "custom.Dengage.ExportProductsFile",
+                "@supports-parallel-execution": "true",
+                "@supports-site-context": "true",
+                "@supports-organization-context": "true",
+                "description": "This job import products via file",
+                "module": "int_dengage_core/cartridge/scripts/dengage/exportProducts.js",
+                "function": "exportProductsFile",
+                "transactional": "false",
+                "timeout-in-seconds": "32400",
+                "parameters": {
+                    "parameter": []
+                },
+                "status-codes": {
+                    "status": [
+                        {
+                            "@code": "ERROR",
+                            "description": "Used when the step failed with an error."
+                        },
+                        {
+                            "@code": "FINISHED",
+                            "description": "Used when the step finished successfully."
+                        },
+                        {
+                            "@code": "FINISHED_WITH_WARNINGS",
+                            "description": "Used when the step finished with warnings."
+                        }
+                    ]
+                }
+            },
+            {
+                "@type-id": "custom.Dengage.ExportCustomerFiles",
+                "@supports-parallel-execution": "true",
+                "@supports-site-context": "true",
+                "@supports-organization-context": "true",
+                "description": "This job import customers",
+                "module": "int_dengage_core/cartridge/scripts/dengage/exportCustomers.js",
+                "function": "exportCustomersFile",
+                "transactional": "false",
+                "timeout-in-seconds": "32400",
+                "parameters": {
+                    "parameter": []
+                },
+                "status-codes": {
+                    "status": [
+                        {
+                            "@code": "ERROR",
+                            "description": "Used when the step failed with an error."
+                        },
+                        {
+                            "@code": "FINISHED",
+                            "description": "Used when the step finished successfully."
+                        },
+                        {
+                            "@code": "FINISHED_WITH_WARNINGS",
+                            "description": "Used when the step finished with warnings."
+                        }
+                    ]
+                }
+            },
+            {
+                "@type-id": "custom.Dengage.ExportOrdersFile",
+                "@supports-parallel-execution": "true",
+                "@supports-site-context": "true",
+                "@supports-organization-context": "true",
+                "description": "This job import customers",
+                "module": "int_dengage_core/cartridge/scripts/dengage/exportOrders.js",
+                "function": "exportOrdersFile",
+                "transactional": "false",
+                "timeout-in-seconds": "32400",
+                "parameters": {
+                    "parameter": []
+                },
+                "status-codes": {
+                    "status": [
+                        {
+                            "@code": "ERROR",
+                            "description": "Used when the step failed with an error."
+                        },
+                        {
+                            "@code": "FINISHED",
+                            "description": "Used when the step finished successfully."
+                        },
+                        {
+                            "@code": "FINISHED_WITH_WARNINGS",
+                            "description": "Used when the step finished with warnings."
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
