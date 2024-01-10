@@ -2,7 +2,7 @@
     var dengageUtils = require('*/cartridge/scripts/dengage/utils');
 </isscript>
 <isscript>
-    if (pdict.category) {
+    if (pdict.category && dengageUtils.dengageEnabled) {
         var dengageCategories = [];
         var dengageCurrentCategory = pdict.category;
         do {
@@ -57,7 +57,7 @@
             let dengageUnitPrice = listPrice ? listPrice : salePrice;
             let dengageDiscountedPrice = salePrice && salePrice < listPrice ? salePrice : '';
             let dengageProductAvailability = 1; 
-            <isif condition = "${!product.readyToOrder}">
+            <isif condition = "${product && !product.readyToOrder}">
                 dengageProductAvailability = 0; 
              </isif>
             dengage("ec:pageView", {

@@ -7,7 +7,9 @@ var ProductMgr = require('dw/catalog/ProductMgr');
 /* Script Modules */
 var dengageUtils = require('*/cartridge/scripts/dengage/utils');
 
-function parseProductData(product = null, productId = 0) {
+function parseProductData(product, productId) {
+    product = product || null;
+    productId = productId || 0;
     var dengageProduct = {};
     var logger = Logger.getLogger('int_dengage', 'dengage');
     try {

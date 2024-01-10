@@ -35,7 +35,8 @@ function parseLineItem(lineItem) {
     return dengageCartItem;
 }
 
-function parseCartItemData(basket, productId = null) {
+function parseCartItemData(basket, productId) {
+    productId = productId || null;
     var dengageCartItem;
     var logger = Logger.getLogger('int_dengage', 'dengage');
     try {

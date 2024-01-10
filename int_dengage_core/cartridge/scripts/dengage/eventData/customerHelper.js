@@ -7,7 +7,10 @@ var CustomerMgr = require('dw/customer/CustomerMgr');
 /* Script Modules */
 var dengageUtils = require('*/cartridge/scripts/dengage/utils');
 
-function parseCustomerData(customer = null, customerId = 0, order = null) {
+function parseCustomerData(customer, customerId, order) {
+    customer = customer || null;
+    customerId = customerId || 0;
+    order = order || null;
     var dengageCustomer = {};
     var logger = Logger.getLogger('int_dengage', 'dengage');
     try {
