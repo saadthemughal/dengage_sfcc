@@ -14,6 +14,22 @@
         var dengageCategoryPath = dengageCategories.join(" > ");
     }
 </isscript>
+<isscript>
+    if (dengageUtils.dengageEnabled) {
+        var dengageSDKBaseUrl = 'https://pcdn.dengage.com'
+        if (dengageUtils.dnRegion == 'Turkey') {
+            dengageSDKBaseUrl = 'https://pcdn.dengage.com';
+        } else if (dengageUtils.dnRegion == 'United States') {
+            dengageSDKBaseUrl = 'https://us-pcdn.dengage.com';
+        } else if (dengageUtils.dnRegion == 'Europe') {
+            dengageSDKBaseUrl = 'https://eu-pcdn.dengage.com';
+        } else if (dengageUtils.dnRegion == 'Russia') {
+            dengageSDKBaseUrl = 'https://ru-pcdn.dengage.com';
+        } else if (dengageUtils.dnRegion == 'South Asia') {
+            dengageSDKBaseUrl = 'https://sa-pcdn.dengage.com';
+        }
+    }
+</isscript>
 <iscomment>
     this template should be included near the end of the html body on all pages.
     it calls the Dengage JS SDK files into the page, and calls the Dengage-Event controller via
@@ -22,19 +38,13 @@
 <!--- TEMPLATENAME: dengage_snippets.isml --->
 <script>
     console.log('Dengage snippets loaded!');
-    var siteID = $('#dotdigital-currentSiteId');
-    var siteName = '';
-    if (siteID &&
-        siteID.attr('data-siteid')) {
-        siteName = siteID.attr('data-siteid');
-    }
 </script>
 <isif condition="${dengageUtils.dengageEnabled}">
     <script>
         !function(e, a, n, d, g) {
             e.dengage = e.dengage || function() {
                 (e.dengage.q = e.dengage.q || []).push(arguments)
-            }, d = a.getElementsByTagName("head")[0], (g = a.createElement("script")).async = 1, g.src = "https://eu-pcdn.dengage.com/p/push/${dengageUtils.dnAccountId}/${dengageUtils.dnAppGuid}/dengage_sdk.js", d.appendChild(g)
+            }, d = a.getElementsByTagName("head")[0], (g = a.createElement("script")).async = 1, g.src = "${dengageSDKBaseUrl}/p/push/${dengageUtils.dnAccountId}/${dengageUtils.dnAppGuid}/dengage_sdk.js", d.appendChild(g)
         }(window, document);
         dengage('initialize');
     </script>
@@ -71,8 +81,7 @@
             var cgId = '${request.httpParameterMap.cgid.stringValue}';
             if (cgId && cgId != 'null') {
                 let dengageCategoryPath = "${dengageCategoryPath}";
-                dengageCategoryPath =
-                    dengageCategoryPath.replace('&gt;', '>');
+                dengageCategoryPath = dengageCategoryPath.replace('&gt;', '>');
                 dengage("ec:pageView", {
                     page_type: "category",
                     category_id: cgId,
@@ -96,6 +105,7 @@
                 page_type: "home"
             });
         } else if (isCheckout) {
+            var siteName = "${dw.system.Site.current.ID}";
             var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
             $.ajax({
                 url: url,
@@ -149,6 +159,7 @@
                     let data = convertDataToJSON(options.data);
                     let productId = data.pid;
                     let quantity = data.quantity;
+                    var siteName = "${dw.system.Site.current.ID}";
                     var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
                     $.ajax({
                         url: url,
