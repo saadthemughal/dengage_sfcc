@@ -3,6 +3,7 @@
 /* API Includes */
 var Logger = require('dw/system/Logger');
 var ProductMgr = require('dw/catalog/ProductMgr');
+var URLUtils = require('dw/web/URLUtils');
 
 /* Script Modules */
 var dengageUtils = require('*/cartridge/scripts/dengage/utils');

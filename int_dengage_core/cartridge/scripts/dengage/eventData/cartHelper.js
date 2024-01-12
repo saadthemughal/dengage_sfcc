@@ -29,7 +29,7 @@ function parseLineItem(lineItem) {
         }
 
         // Get the product object
-        dengageProduct = productHelper.parseProductData(basketProduct);
+        var dengageProduct = productHelper.parseProductData(basketProduct);
         dengageCartItem.dengageProduct = dengageProduct;
     }
     return dengageCartItem;
