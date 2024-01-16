@@ -404,6 +404,7 @@ module.exports = {
     dnCategoryColumns: dnCategoryColumns,
     dnStagingEnabled: dnStagingEnabled,
     dnSDK: dnSDK,
+    dnRegion: dnRegion,
     dnServiceWorker: dnServiceWorker,
     dnBaseUrl: dnBaseUrl,
     dnEventUrl: dnEventUrl,
