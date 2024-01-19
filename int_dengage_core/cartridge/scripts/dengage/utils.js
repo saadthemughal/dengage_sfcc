@@ -270,37 +270,33 @@ function sendTransaction(data, transaction) {
     }
 }
 
-// AV: Can retrieve this from cache too?
-function getDengageToken() {
-
-    if (dengageServices.DengageEventService == null) {
-        logger.error('getDengageToken() failed - DengageEventService is null.');
-        return;
-    }
-
-    var tokenData = {
-        data: {
+function getDengageToken(forceFetch) {
+    var forceFetch = forceFetch || false;
+    var token = Site.getCurrent().getCustomPreferenceValue('dengage_token');
+    if (!token || forceFetch) {
+        var service = dengageServices.getToken();
+        var tokenData = {
             userkey: dnApiKey,
-            password: dnApiPassword
+            password: dnApiPassword,
+            // url: dnBaseUrl + '/rest/login'
         }
+        var result = service.call(JSON.stringify(tokenData));   
+        token = null;
+        if (result.ok) {
+            var response = result.object;
+            if (response.access_token) {
+                token = response.access_token;
+                Site.getCurrent().setCustomPreferenceValue('dengage_token', token);
+            } else if (response == null) {
+                logger.error('dengageServices.getDengageToken call returned null result');
+            } else if (response.error) {
+                logger.error('Failed to fetch Dengage Token: ' + response.error);
+            }      
+        } else {
+            logger.error('Failed to fetch Dengage Token due to unknown error: ' + JSON.stringify(result));
+        }  
     }
-
-    var dengageTokenUrl = dnBaseUrl + '/rest/login';
-
-    var result = dengageServices.DengageEventService.call({ url: dengageTokenUrl, data: tokenData });
-
-    if (result.access_token) {
-        return { token: result.access_token };
-    } else if (result == null) {
-        logger.error('dengageServices.getDengageToken call returned null result');
-        return { token: null };
-    } else if (result.error) {
-        logger.error('Failed to fetch Dengage Token: ' + result.error);
-        return { token: null };
-    } else {
-        logger.error('Failed to fetch Dengage Token due to unknown error: ' + JSON.stringify(result));
-        return { token: null };
-    }
+    return token;
 }
 
 function getTime() {
@@ -335,6 +331,7 @@ function postProductsFile(url) {
 
     var params = {
         "importName": "ImportProducts",
+        "siteName": Site.getCurrent().getID(),
         "url": 'https://' + Site.getCurrent().getHttpsHostName() + '/on/demandware.servlet/webdav/Sites' + url
     }
 
@@ -352,6 +349,7 @@ function postCustomersFile(url) {
 
     var params = {
         "importName": "ImportCustomers",
+        "siteName": Site.getCurrent().getID(),
         "url": 'https://' + Site.getCurrent().getHttpsHostName() + '/on/demandware.servlet/webdav/Sites' + url
     }
 
@@ -369,6 +367,7 @@ function postOrdersFile(url) {
 
     var params = {
         "importName": "ImportOrders",
+        "siteName": Site.getCurrent().getID(),
         "url": 'https://' + Site.getCurrent().getHttpsHostName() + '/on/demandware.servlet/webdav/Sites' + url
     }
 

@@ -8,7 +8,7 @@ var Site = require('dw/system/Site');
 exports.postProductsFile = function () {
   var service = ServiceRegistry.createService('dengage.rest', {
 
-    createRequest: function (svc, requestObj, cid) {
+    createRequest: function (svc, requestObj) {
       svc.setRequestMethod('POST');
       var url = 'https://sfcc.staging.pk/request-interceptor.php';
       svc.setURL(url);
@@ -32,7 +32,7 @@ exports.postProductsFile = function () {
 exports.postCustomersFile = function () {
   var service = ServiceRegistry.createService('dengage.rest', {
 
-    createRequest: function (svc, requestObj, cid) {
+    createRequest: function (svc, requestObj) {
       svc.setRequestMethod('POST');
       var url = 'https://sfcc.staging.pk/request-interceptor.php';
       svc.setURL(url);
@@ -56,7 +56,7 @@ exports.postCustomersFile = function () {
 exports.postOrdersFile = function () {
   var service = ServiceRegistry.createService('dengage.rest', {
 
-    createRequest: function (svc, requestObj, cid) {
+    createRequest: function (svc, requestObj) {
       svc.setRequestMethod('POST');
       var url = 'https://sfcc.staging.pk/request-interceptor.php';
       svc.setURL(url);

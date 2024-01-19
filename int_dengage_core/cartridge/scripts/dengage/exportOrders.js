@@ -45,7 +45,7 @@ function exportOrdersFile(options) {
 
     // custom.dengage_last_exported < {0} OR custom.dengage_last_exported = NULL
     searchOrders = OrderMgr.queryOrders(
-        '(custom.dengage_last_exported != NULL)',
+        'custom.dengage_last_exported < {0} OR custom.dengage_last_exported = NULL',
         //'creationDate <= {0}',
         null,
         dengageOrdersDateUpdate
