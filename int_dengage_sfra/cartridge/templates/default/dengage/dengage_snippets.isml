@@ -63,11 +63,18 @@
         var isCheckout = window.location.pathname.split("/").pop() == 'checkout';
         if (pageAction == 'Product-Show') {
             let salePrice = ${product.price.sales.value};
+            if (!salePrice)
+                salePrice = ${pdict.product.price.sales.value};
             let listPrice = ${product.price.list.value};
+            if (!listPrice)
+                listPrice = ${pdict.product.price.list.value};
             let dengageUnitPrice = listPrice ? listPrice : salePrice;
             let dengageDiscountedPrice = salePrice && salePrice < listPrice ? salePrice : '';
             let dengageProductAvailability = 1; 
             <isif condition = "${product && !product.readyToOrder}">
+                dengageProductAvailability = 0; 
+             </isif>
+            <isif condition = "${pdict.product && !pdict.product.readyToOrder}">
                 dengageProductAvailability = 0; 
              </isif>
             dengage("ec:pageView", {

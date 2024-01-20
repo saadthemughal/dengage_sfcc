@@ -115,6 +115,32 @@ module.exports = function () {
                     dengageOrder.payment_method = paymentMethod;
                 dengageOrder.coupon_code = discountCoupon;
                 dengageOrder.items = productLineItemsArray;
+
+                if (!order.customer || !order.customer.registered) {
+                    try {
+                        var dengageCustomer = {};
+                        dengageCustomer.contact_key = order.customerEmail;
+                        dengageCustomer.name = order.customerName;
+                        dengageCustomer.surname = order.billingAddress.secondName;
+                        dengageCustomer.contact_status = 'A';
+                        dengageCustomer.email = order.customerEmail;
+                        dengageCustomer.email_permission = true;
+                        dengageCustomer.gsm_permission = true;
+                        dengageCustomer.subscription_date = orderCreationDate;
+                        dengageCustomer.gsm = order.billingAddress.phone;
+                        dengageCustomer.address1_addressid = 'N/A';
+                        dengageCustomer.address1_city = order.billingAddress.city;
+                        dengageCustomer.address1_country = order.billingAddress.countryCode.displayValue;
+                        dengageCustomer.address1_line1 = order.billingAddress.address1;
+                        dengageCustomer.address1_line2 = order.billingAddress.address2;
+                        dengageCustomer.address1_line3 = '';
+                        dengageCustomer.gender = '';
+                        dengageCustomer.birth_date = '';
+                        dengageOrder.dengageCustomer = dengageCustomer;
+                    } catch (eIn) {
+                        logger.error('orderHelper.parseOrderData() Customer Object Creation failed: ' + eIn.message + ' ' + eIn.stack);
+                    }
+                }
             }
         } catch (e) {
             logger.error('orderHelper.parseOrderData() failed: ' + e.message + ' ' + e.stack);
