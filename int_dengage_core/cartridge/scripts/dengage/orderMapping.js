@@ -24,7 +24,6 @@ module.exports = function () {
                 var productLineItems = order.shipments[0].productLineItems;
                 var productLineItem = {};
                 var productLineItemsArray = [];
-                var orderTotal = 0;
                 var itemCount = 0;
                 for (var j in productLineItems) {
                     productLineItem = productLineItems[j];
@@ -61,7 +60,6 @@ module.exports = function () {
                     productLineItemsArray.push(currentLineItem);
 
                     itemCount += productLineItem.quantity.value;
-                    orderTotal = orderTotal + (currentLineItem.discounted_price * productLineItem.quantity.value);
                 }
 
                 // Get the coupon attached to the order
@@ -110,7 +108,7 @@ module.exports = function () {
                 dengageOrder.order_status = dengageOrderStatus;
                 dengageOrder.referrer = order.channelType;
                 dengageOrder.item_count = itemCount;
-                dengageOrder.total_amount = orderTotal;
+                dengageOrder.total_amount = order.totalGrossPrice.value;
                 if (validPaymentMethods.includes(paymentMethod))
                     dengageOrder.payment_method = paymentMethod;
                 dengageOrder.coupon_code = discountCoupon;
