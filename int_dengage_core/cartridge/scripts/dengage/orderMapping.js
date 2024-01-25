@@ -24,7 +24,6 @@ module.exports = function () {
                 var productLineItems = order.shipments[0].productLineItems;
                 var productLineItem = {};
                 var productLineItemsArray = [];
-                var orderTotal = 0;
                 var itemCount = 0;
                 for (var j in productLineItems) {
                     productLineItem = productLineItems[j];
@@ -61,7 +60,6 @@ module.exports = function () {
                     productLineItemsArray.push(currentLineItem);
 
                     itemCount += productLineItem.quantity.value;
-                    orderTotal = orderTotal + (currentLineItem.discounted_price * productLineItem.quantity.value);
                 }
 
                 // Get the coupon attached to the order
@@ -110,11 +108,37 @@ module.exports = function () {
                 dengageOrder.order_status = dengageOrderStatus;
                 dengageOrder.referrer = order.channelType;
                 dengageOrder.item_count = itemCount;
-                dengageOrder.total_amount = orderTotal;
+                dengageOrder.total_amount = order.totalGrossPrice.value;
                 if (validPaymentMethods.includes(paymentMethod))
                     dengageOrder.payment_method = paymentMethod;
                 dengageOrder.coupon_code = discountCoupon;
                 dengageOrder.items = productLineItemsArray;
+
+                if (!order.customer || !order.customer.registered) {
+                    try {
+                        var dengageCustomer = {};
+                        dengageCustomer.contact_key = order.customerEmail;
+                        dengageCustomer.name = order.customerName;
+                        dengageCustomer.surname = order.billingAddress.secondName;
+                        dengageCustomer.contact_status = 'A';
+                        dengageCustomer.email = order.customerEmail;
+                        dengageCustomer.email_permission = true;
+                        dengageCustomer.gsm_permission = true;
+                        dengageCustomer.subscription_date = orderCreationDate;
+                        dengageCustomer.gsm = order.billingAddress.phone;
+                        dengageCustomer.address1_addressid = 'N/A';
+                        dengageCustomer.address1_city = order.billingAddress.city;
+                        dengageCustomer.address1_country = order.billingAddress.countryCode.displayValue;
+                        dengageCustomer.address1_line1 = order.billingAddress.address1;
+                        dengageCustomer.address1_line2 = order.billingAddress.address2;
+                        dengageCustomer.address1_line3 = '';
+                        dengageCustomer.gender = '';
+                        dengageCustomer.birth_date = '';
+                        dengageOrder.dengageCustomer = dengageCustomer;
+                    } catch (eIn) {
+                        logger.error('orderHelper.parseOrderData() Customer Object Creation failed: ' + eIn.message + ' ' + eIn.stack);
+                    }
+                }
             }
         } catch (e) {
             logger.error('orderHelper.parseOrderData() failed: ' + e.message + ' ' + e.stack);
