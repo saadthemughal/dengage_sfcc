@@ -15,6 +15,44 @@
     }
 </isscript>
 <isscript>
+    if (dengageUtils.dengageEnabled && pdict.currentOrder && pdict.currentOrder.productLineItems) {
+        var dengageProductLines = [];
+        try {
+            var dengageProductMgr = require('dw/catalog/ProductMgr');
+            for (var j in pdict.currentOrder.productLineItems) {
+                productLineItem = productLineItems[j];
+                // Get the product secondary name
+                var lineItemProduct = productLineItem.product;
+                var productDetail = dengageProductMgr.getProduct(lineItemProduct.ID);
+                if (productDetail) {
+                    var productId = productLineItem.productID;
+                    var productVariantId = '';
+                    if (!productDetail.master && 'masterProduct' in productDetail) {
+                        productId = productDetail.masterProduct.ID;
+                        productVariantId = productLineItem.productID;
+                    }
+                    var priceData = dengageUtils.priceCheck(productLineItem, productDetail);
+                    var currentLineItem = {};
+                    var discountedPrice = 0;
+                    if (priceData.purchasePriceValue > priceData.originalPriceValue)
+                        discountedPrice = priceData.originalPriceValue;
+                    else if (priceData.purchasePriceValue == 0)
+                        discountedPrice = 0.01;
+                    else
+                        discountedPrice = priceData.purchasePriceValue
+                    currentLineItem.product_id = productId;
+                    currentLineItem.product_variant_id = productVariantId;
+                    currentLineItem.quantity = productLineItem.quantity.value;
+                    currentLineItem.unit_price = priceData.originalPriceValue;
+                    currentLineItem.discounted_price = discountedPrice;
+                    dengageProductLines.push(currentLineItem);
+                }
+            }
+        } catch (e) {
+        }
+    }
+</isscript>
+<isscript>
     if (dengageUtils.dengageEnabled) {
         var dengageSDKBaseUrl = 'https://pcdn.dengage.com'
         if (dengageUtils.dnRegion == 'Turkey') {
@@ -90,7 +128,7 @@
             } else {
                 var searchResultCountElement = document.querySelector('.search-result-count');
                 if (searchResultCountElement) {
-                    var searchResultCount = searchResultCountElement.innerHTML.replace('Results for', '').trim();
+                    var searchResultCount = searchResultCountElement.innerHTML.toLowerCase().replace(' results', '').trim().toFixed(0);
                     var urlParams = new URLSearchParams(window.location.search);
                     var searchQuery = urlParams.get('q');
                     dengage("ec:search", {
@@ -166,6 +204,7 @@
                         type: 'get',
                         dataType: 'json',
                         success: function(data) {
+                            console.log(data);
                             $.each(data.items, function(index, val) {
                                 if (val.id == productId) {
                                     let discountedPrice = unitPrice = val.price.sales.value;
@@ -238,18 +277,10 @@
                 total_amount: ${pdict.currentOrder.totalGrossPrice.value},
                 payment_method: "${pdict.currentOrder.paymentInstruments.length ? pdict.currentOrder.paymentInstruments[0].paymentMethod : ''}",
                 shipping: ${pdict.currentOrder.adjustedShippingTotalPrice.value},
-                coupon_code: "${pdict.currentOrder.couponLineItems.length ? pdict.currentOrder.couponLineItems[0].couponCode : ''}"
+                coupon_code: "${pdict.currentOrder.couponLineItems.length ? pdict.currentOrder.couponLineItems[0].couponCode : ''}",
+                cartItems: dengageProductLines
             };
-            var cartItems = [];
-            <isloop iterator="${pdict.currentOrder.productLineItems}" alias="lineItem" status="orderItemsLoop">
-                cartItems[${orderItemsLoop.index}] = {
-                        product_id: "${lineItem.parent ? lineItem.parent.productID : lineItem.productID}",
-                        product_variant_id: "${lineItem.parent ? lineItem.productID : ''}",
-                        quantity: ${lineItem.quantity.value},
-                        unit_price: ${lineItem.quantity.value > 0 ? lineItem.adjustedPrice.value / lineItem.quantity.value : lineItem.adjustedPrice.value},
-                        // discounted_price: ${lineItem.quantity.value > 0 ? lineItem.adjustedPrice.value / lineItem.quantity.value : lineItem.adjustedPrice.value}
-                    }
-            </isloop>
-            orderObj.cartItems = cartItems; dengage("ec:order", orderObj); </script>
+            dengage("ec:order", orderObj);
+        </script>
     </isif>
 </isif>
