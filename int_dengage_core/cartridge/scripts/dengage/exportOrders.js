@@ -17,118 +17,62 @@ function exportOrdersFile(options) {
     var searchOrders;
     var newDengageOrdersDateUpdate = dengageUtils.getTime();
 
-    var lastRunObject = CustomObjectMgr.getCustomObject('DENGAGE_LASTRUN', 'dengageOrdersDateUpdate');
-    if (!lastRunObject) {
-        Transaction.wrap(function () {
-            lastRunObject =
-                CustomObjectMgr.createCustomObject('DENGAGE_LASTRUN', 'dengageOrdersDateUpdate');
-        });
-    }
-
-    var dengageOrdersDateUpdate = lastRunObject.custom.lastRunTime ? lastRunObject.custom.lastRunTime : Site.getCurrent().getCustomPreferenceValue('dengage_orders_date_update');
+    var dengageOrdersDateUpdate = Site.getCurrent().getCustomPreferenceValue('dengage_orders_date_update');
 
     if (!dengageOrdersDateUpdate) {
         dengageOrdersDateUpdate = newDengageOrdersDateUpdate;
-
-        try {
-            Transaction.wrap(function () {
-                Site.getCurrent().setCustomPreferenceValue('dengage_orders_date_update',
-                    newDengageOrdersDateUpdate);
-            });
-            Transaction.wrap(function () {
-                lastRunObject.custom.lastRunTime = newDengageOrdersDateUpdate;
-            });
-        } catch (e) {
-            Logger.info(['finish-newDengageOrdersDateUpdate', newDengageOrdersDateUpdate]);
-        }
+        searchOrders = OrderMgr.queryOrders(
+            'creationDate <= {0}',
+            null,
+            dengageOrdersDateUpdate
+        );
+    } else {
+        searchOrders = OrderMgr.queryOrders(
+            'lastModified >= {0}',
+            null,
+            dengageOrdersDateUpdate
+        );
     }
 
-    // custom.dengage_last_exported < {0} OR custom.dengage_last_exported = NULL
-    searchOrders = OrderMgr.queryOrders(
-        'custom.dengage_last_exported < {0} OR custom.dengage_last_exported = NULL',
-        //'creationDate <= {0}',
-        null,
-        dengageOrdersDateUpdate
-    );
+    Transaction.wrap(function () {
+        Site.getCurrent().setCustomPreferenceValue('dengage_orders_date_update',
+            newDengageOrdersDateUpdate);
+    });
 
     Logger.info(['call-exportOrdersFile', searchOrders.getCount(), dengageOrdersDateUpdate, Site.getCurrent().getCustomPreferenceValue('dengage_orders_date_update')]);
-    exportOrdersFileRuner(options, searchOrders, 999999999);
-}
+    var limit = 999999999;
 
-/**
- *  Generate CSV for Export
- **/
-function exportOrdersFileRuner(options, searchOrders, limit) {
     var newDengageOrdersDateUpdate = dengageUtils.getTime();
     var date = newDengageOrdersDateUpdate;
     var counter = 0;
 
     if (searchOrders.hasNext()) {
-        var siteID = Site.getCurrent().getID(),
-            exportFolderPath = File.IMPEX + "/dengage/",
-            exportFolder = new File(exportFolderPath);
-
-        if (!exportFolder.exists()) {
-            exportFolder.mkdirs();
-        }
-
-        var exportFilename = exportFolder.fullPath + "orders_"
-            + dengageUtils.getTimestamp() + ".json";
-        var exportFile = new File(exportFilename),
-            fileWriter = new FileWriter(exportFile, "utf-8");
-
-        var ordersProcessed = [];
-        Logger.info(['call-exportOrdersFile', exportFile]);
-
-        while (searchOrders.hasNext() && (counter++ < limit)) {
-            var orders = searchOrders.next();
+        var dengageOrders = [];
+        var dengageCustomers = [];
+        while (searchOrders.hasNext() && (counter < limit)) {
+            var order = searchOrders.next();
             var orderMapping = new OrderMapping();
-            var dengageOrder = orderMapping.execute(orders);
-
-            if (counter % 2000 === 0 && counter) {
-                fileWriter.close();
-
-                dengageUtils.postOrdersFile(exportFile.fullPath);
-
-                // Update order date flag
-                ordersProcessed.forEach(function (order) {
-                    Transaction.wrap(function () {
-                        order.custom.dengage_last_exported = newDengageOrdersDateUpdate;
-                    });
-                });
-                ordersProcessed = [];
-
-                exportFilename = exportFolder.fullPath + "orders_"
-                    + dengageUtils.getTimestamp() + "_" + counter + ".json";
-                exportFile = new File(exportFilename),
-                    fileWriter = new FileWriter(exportFile, "utf-8"),
-
-                    Logger.info(['exportOrdersFile-progress', counter + ' out of '
-                        + searchOrders.getCount() + ' orders processed']);
+            var dengageOrder = orderMapping.execute(order);
+            if (dengageOrder)
+                dengageOrders.push(dengageOrder);
+            if (dengageOrder && dengageOrder.dengageCustomer)
+                dengageCustomers.push(dengageOrder.dengageCustomer);
+            if (counter % 200 === 0) {
+                dengageUtils.sendTransaction(dengageOrders, 'order');
+                Logger.info(['exportOrdersFile-progress', counter + ' out of '
+                    + searchOrders.getCount() + ' orders processed']);
+                dengageUtils.sendTransaction(dengageCustomers, 'customer');
+                dengageOrders = [];
+                dengageCustomers = [];
             }
-
-            if (dengageOrder) {
-                fileWriter.writeLine(JSON.stringify(dengageOrder));
-            }
-
-            ordersProcessed.push(orders);
+            counter++;
+            Logger.info(['call-exportOrdersFile-finished', counter]);
         }
-
-        //Clear resources
-        fileWriter.close();
-
-        Logger.info(['call-exportOrdersFile', newDengageOrdersDateUpdate, exportFilename, counter]);
-
-        dengageUtils.postOrdersFile(exportFile.fullPath);
-
-        // Update order date flag
-        ordersProcessed.forEach(function (order) {
-            Transaction.wrap(function () {
-                order.custom.dengage_last_exported = newDengageOrdersDateUpdate;
-                Logger.info(['update-order-dengageLastExported', order.UUID]);
-            });
-        });
-        ordersProcessed = [];
+        if (dengageOrders.length)
+            dengageUtils.sendTransaction(dengageOrders, 'order');
+        if (dengageCustomers.length)
+            dengageUtils.sendTransaction(dengageCustomers, 'customer');
+        Logger.info(['call-exportOrdersFile-finished', limit, counter]);
     }
 }
 

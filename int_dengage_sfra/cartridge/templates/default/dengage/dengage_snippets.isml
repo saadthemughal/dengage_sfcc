@@ -20,7 +20,7 @@
         try {
             var dengageProductMgr = require('dw/catalog/ProductMgr');
             for (var j in pdict.currentOrder.productLineItems) {
-                productLineItem = productLineItems[j];
+                productLineItem = pdict.currentOrder.productLineItems[j];
                 // Get the product secondary name
                 var lineItemProduct = productLineItem.product;
                 var productDetail = dengageProductMgr.getProduct(lineItemProduct.ID);
@@ -106,18 +106,21 @@
             let listPrice = ${product.price.list.value};
             if (!listPrice)
                 listPrice = ${pdict.product.price.list.value};
-            let dengageUnitPrice = listPrice ? listPrice : salePrice;
-            let dengageDiscountedPrice = salePrice && salePrice < listPrice ? salePrice : '';
+            let dengageUnitPrice = listPrice ? Math.round(listPrice) : Math.round(salePrice);
+            let dengageDiscountedPrice = salePrice && salePrice < listPrice ? Math.round(salePrice) : '';
             let dengageProductAvailability = 1; 
             <isif condition = "${product && !product.readyToOrder}">
                 dengageProductAvailability = 0; 
              </isif>
             <isif condition = "${pdict.product && !pdict.product.readyToOrder}">
                 dengageProductAvailability = 0; 
-             </isif>
+            </isif>
+            var productSkuKey = "${product.skuKey}";
+            if (!productSkuKey || productSkuKey == 'null')
+                productSkuKey = "${pdict.product.skuKey}";
             dengage("ec:pageView", {
                 page_type: "product",
-                product_id: "${request.httpParameterMap.pid.stringValue}",
+                product_id: productSkuKey,
                 price: dengageUnitPrice,
                 discounted_price: dengageDiscountedPrice,
                 stock_count: dengageProductAvailability
@@ -135,12 +138,12 @@
             } else {
                 var searchResultCountElement = document.querySelector('.search-result-count');
                 if (searchResultCountElement) {
-                    var searchResultCount = searchResultCountElement.innerHTML.toLowerCase().replace(' results', '').trim().toFixed(0);
+                    var searchResultCount = searchResultCountElement.innerHTML.toLowerCase().replace(' results', '').trim();
                     var urlParams = new URLSearchParams(window.location.search);
                     var searchQuery = urlParams.get('q');
                     dengage("ec:search", {
                         keywords: searchQuery,
-                        result_count: searchResultCount,
+                        result_count: searchResultCount || 0,
                         filters: ''
                     });
                 }
@@ -219,8 +222,8 @@
                                     if (discountedPrice >= unitPrice)
                                         discountedPrice = '';
                                     dengage('ec:addToCart', {
-                                        product_id: productId,
-                                        product_variant_id: '',
+                                        product_id: val.skuKey,
+                                        product_variant_id: productId,
                                         quantity: quantity,
                                         unit_price: unitPrice,
                                         discounted_price: discountedPrice
@@ -230,29 +233,41 @@
                         }
                     });
                 } else if (options.url.includes("Cart-RemoveProductLineItem")) {
-                    let queryParams =
-                        options.url.substr(options.url.indexOf("?") + 1);
+                    let queryParams = options.url.substr(options.url.indexOf("?") + 1);
                     let data = convertDataToJSON(queryParams);
                     let productId = data.pid;
-                    dengage('ec:removeFromCart', {
-                        product_id: productId,
-                        product_variant_id: '',
-                        quantity: 0
-                    });
-                } else if (options.url.includes("Cart-UpdateQuantity")) {
-                    let queryParams =
-                        options.url.substr(options.url.indexOf("?") + 1);
-                    let data = convertDataToJSON(queryParams);
-                    let productId = data.pid;
-                    let quantity = data.quantity;
-                    let previousQuantity = data.prevQty;
+                    var siteName = "${dw.system.Site.current.ID}";
+                    var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Product?productId=' + productId;
                     $.ajax({
                         url: url,
                         type: 'get',
                         dataType: 'json',
                         success: function(data) {
-                            $.each(data.items, function(index,
-                                val) {
+                            if (data) {
+                                dengage('ec:removeFromCart', {
+                                    product_id: data.product_id,
+                                    product_variant_id: data.product_variant_id,
+                                    unit_price: data.unit_price,
+                                    discounted_price: data.discounted_price,
+                                    quantity: 0
+                                });
+                            }
+                        }
+                    });
+                } else if (options.url.includes("Cart-UpdateQuantity")) {
+                    let queryParams = options.url.substr(options.url.indexOf("?") + 1);
+                    let data = convertDataToJSON(queryParams);
+                    let productId = data.pid;
+                    var siteName = "${dw.system.Site.current.ID}";
+                    let quantity = data.quantity;
+                    let previousQuantity = data.prevQty;
+                    var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
+                    $.ajax({
+                        url: url,
+                        type: 'get',
+                        dataType: 'json',
+                        success: function(data) {
+                            $.each(data.items, function(index, val) {
                                 if (val.id == productId) {
                                     let discountedPrice = unitPrice = val.price.sales.value;
                                     if (val.price.list) unitPrice = val.price.list.value;
@@ -261,8 +276,8 @@
                                     else if (previousQuantity < quantity)
                                         eventType = 'ec:addToCart';
                                     dengage(eventType, {
-                                        product_id: productId,
-                                        product_variant_id: '',
+                                        product_id: val.skuKey,
+                                        product_variant_id: productId,
                                         quantity: quantity,
                                         unit_price: unitPrice,
                                         discounted_price: discountedPrice
@@ -285,9 +300,22 @@
                 payment_method: "${pdict.currentOrder.paymentInstruments.length ? pdict.currentOrder.paymentInstruments[0].paymentMethod : ''}",
                 shipping: ${pdict.currentOrder.adjustedShippingTotalPrice.value},
                 coupon_code: "${pdict.currentOrder.couponLineItems.length ? pdict.currentOrder.couponLineItems[0].couponCode : ''}",
-                cartItems: dengageProductLines
+                cartItems: []
             };
-            dengage("ec:order", orderObj);
+            let dengageCartItems = [];
+            <isloop iterator="${dengageProductLines}" alias="lineItem" status="orderItemsLoop">
+                dengageCartItems[${orderItemsLoop.index}] = {
+                    product_id: "${lineItem.product_id}",
+                    product_variant_id: "${lineItem.product_variant_id}",
+                    quantity: ${lineItem.quantity},
+                    unit_price: ${lineItem.unit_price},
+                    discounted_price: ${lineItem.discounted_price}
+                };
+            </isloop>
+            if (dengageCartItems.length) {
+                orderObj.cartItems = dengageCartItems;
+                dengage("ec:order", orderObj);
+            }
         </script>
     </isif>
 </isif>

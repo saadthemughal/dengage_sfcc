@@ -7,6 +7,7 @@ var Session = require('dw/system/Session');
 var StringUtils = require('dw/util/StringUtils');
 var System = require('dw/system/System');
 var Calendar = require('dw/util/Calendar');
+var Transaction = require('dw/system/Transaction');
 
 /* Script Modules */
 var dengageServices = require('int_dengage_core/cartridge/scripts/dengage/services.js');
@@ -33,9 +34,10 @@ var dnTransactionUrls = {
     'order': '/rest/dataspace/ecomm/orders_detail/upsert',
     'product': '/rest/dataspace/ecomm/product/upsert',
     'category': '/rest/dataspace/sync/upsert',
-    'customer': '/rest/bulk/contacts'
+    'customer': '/rest/bulk/contacts',
+    'login': '/rest/login'
 }
-var dnContactColumns = ["contact_key", "name", "surname", "contact_status", "email", "email_permission", "gsm_permission", "birth_date", "subscription_date", "gsm", "address1_addressid", "address1_city", "address1_country", "address1_line1", "address1_line2", "address1_line3", "gender"];
+var dnContactColumns = ["contact_key", "name", "surname", "contact_status", "email", "email_permission", "gsm_permission", "birth_date", "subscription_date", "gsm", "gender"];
 var dnCategoryColumns = ["category_id", "category_path"];
 var dnBaseUrl = 'https://dev-api.dengage.com';
 var dnEventUrl = 'https://dev-event.dengage.com/api/web/event';
@@ -209,92 +211,98 @@ function trackEvent(data, event, customerEmail) {
 }
 
 // AV: Idea is to use this function to send data to create transactions in Dengage
-function sendTransaction(data, transaction) {
-    var dnTokenResponse = getDengageToken();
-    if (!dnTokenResponse.token) {
+function sendTransaction(data, transaction, forceToken) {
+    forceToken = forceToken || false;
+
+    var service = dengageServices.sendTransaction();
+
+    var dengageToken = getDengageToken(forceToken);
+    if (!dengageToken) {
         logger.error('Failed to fetch Dengage Token when trying to send transaction: ' + transaction);
-        return { success: false };
+        return false;
     }
-    var dengageToken = dnTokenResponse.token;
 
     var transactionUrl = dnTransactionUrls[transaction] || '';
     if (!transactionUrl) {
         logger.error('Unknown transaction type: ' + transaction);
-        return { success: false };
+        return false;
     }
 
     var dengageUrl = dnBaseUrl + transactionUrl;
 
-    var tranasctionData = {};
+    var requestObj = {
+        url: dengageUrl,
+        token: dengageToken,
+        data: {}
+    };
     if (transaction == 'order') {
-        tranasctionData = {
-            data: {
-                orders: [data]
-            }
+        requestObj.data = {
+            orders: data
         }
-    } else if (tranasction == 'customer') {
-        tranasctionData = {
-            data: {
-                insertIfNotExists: true,
-                throwExceptionIfInvalidRecord: true,
-                columns: dnContactColumns,
-                contactDatas: [data]
-            }
+    } else if (transaction == 'customer') {
+        requestObj.data = {
+            insertIfNotExists: true,
+            throwExceptionIfInvalidRecord: true,
+            columns: dnContactColumns,
+            contactDatas: data
         }
     } else if (transaction == 'category') {
-        tranasctionData = {
-            data: {
-                tableName: 'category',
-                columns: dnCategoryColumns,
-                rows: [data],
-            }
+        requestObj.data = {
+            tableName: 'category',
+            columns: dnCategoryColumns,
+            rows: data
         }
     } else if (transaction == 'product') {
-        transactionData = {
-            data: {
-                products: [data]
-            }
+        requestObj.data = {
+            products: data
         }
     }
 
-    var result = dengageServices.DengageTransactionService.call({ url: dengageUrl, data: transactionData, token: dengageToken });
+    logger.info(transaction + ' data being sent to Dengage : ' + JSON.stringify(requestObj.data));
 
-    if (result == null) {
-        logger.error('dengageServices.DengageTransactionService call for ' + event + ' returned null result');
-        return;
-    } else if (result.error) {
-        logger.error('dengageServices.DengageTransactionService call for ' + event + ' returned an error' + result.error)
-        return { success: false, error: result.error };
+    var result = service.call(requestObj);
+
+    if (result.ok) {
+        logger.info(transaction + ' data sent to Dengage successfully. Response : ' + JSON.stringify(result.object));
+        return true;
+    } else if (!result.ok && !forceToken && (result.error == 403 || result.error == 401)) {
+        sendTransaction(data, transaction, true);
     } else {
-        return { success: true };
+        logger.error('Failed to send ' + transaction + ' data to Dengage due to unknown error: ' + result.errorMessage + ' and additional info: ' + result.msg);
     }
+    return false;
 }
 
 function getDengageToken(forceFetch) {
     var forceFetch = forceFetch || false;
-    var token = Site.getCurrent().getCustomPreferenceValue('dengage_token');
+    var token = Site.getCurrent().getCustomPreferenceValue('dengage_token') || null;
     if (!token || forceFetch) {
         var service = dengageServices.getToken();
         var tokenData = {
-            userkey: dnApiKey,
-            password: dnApiPassword,
-            // url: dnBaseUrl + '/rest/login'
+            data: {
+                userkey: dnApiKey,
+                password: dnApiPassword,
+            },
+            url: dnBaseUrl + dnTransactionUrls.login
         }
-        var result = service.call(JSON.stringify(tokenData));   
+        var result = service.call(tokenData);
         token = null;
         if (result.ok) {
             var response = result.object;
             if (response.access_token) {
                 token = response.access_token;
-                Site.getCurrent().setCustomPreferenceValue('dengage_token', token);
+                Transaction.wrap(function () {
+                    Site.getCurrent().setCustomPreferenceValue('dengage_token', token);
+                });
+                logger.error('Dengage token fetched successfully : ' + token);
             } else if (response == null) {
                 logger.error('dengageServices.getDengageToken call returned null result');
             } else if (response.error) {
                 logger.error('Failed to fetch Dengage Token: ' + response.error);
-            }      
+            }
         } else {
             logger.error('Failed to fetch Dengage Token due to unknown error: ' + JSON.stringify(result));
-        }  
+        }
     }
     return token;
 }
@@ -394,6 +402,20 @@ function getProductImage(product) {
     return productImageLink;
 }
 
+function getProductPrice(product) {
+    var currentSite = Site.getCurrent();
+    var salePrice = '';
+    var listPrice = '';
+    var productPriceModel = product.getPriceModel();
+    listPrice = productPriceModel.maxPrice.value;
+    salePrice = productPriceModel.price.value;
+    if (salePrice == listPrice) {
+        var listPricebookID = currentSite.getCustomPreferenceValue('listPriceDefault')
+        listPrice = product.priceModel.getPriceBookPrice(listPricebookID).getValue()
+    }
+    return { salePrice: salePrice, listPrice: listPrice };
+}
+
 module.exports = {
     dengageEnabled: dengageEnabled,
     dnAccountId: dnAccountId,
@@ -424,5 +446,6 @@ module.exports = {
     postProductsFile: postProductsFile,
     postCustomersFile: postCustomersFile,
     postOrdersFile: postOrdersFile,
-    getProductImage: getProductImage
+    getProductImage: getProductImage,
+    getProductPrice: getProductPrice
 };

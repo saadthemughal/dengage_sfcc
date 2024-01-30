@@ -26,52 +26,70 @@ module.exports = function () {
 
     var productImageLink = dengageUtils.getProductImage(masterProduct);
 
-    var productPrice = masterProduct.getPriceModel().getPrice().value;
+    var productPrices = dengageUtils.getProductPrice(masterProduct);
+    var productListPrice = productPrices.listPrice;
+    var productSalePrice = productPrices.salePrice;
     var inventoryList = ProductInventoryMgr.getInventoryList();
     var stockCount = dengageUtils.getStock(inventoryList, product);
 
     // Parse product information and place in product object
     dengageProduct.product_id = masterProductId;
-    dengageProduct.title = masterProduct.name;
-    dengageProduct.price = productPrice;
-    dengageProduct.discounted_price = productPrice;
-    dengageProduct.description = masterProduct.shortDescription;
-    dengageProduct.category_path = category;
-    dengageProduct.brand = masterProduct.brand;
+    dengageProduct.title = masterProduct.name || 'Untitled';
+    dengageProduct.price = productListPrice;
+    dengageProduct.discounted_price = productSalePrice;
+    dengageProduct.description = masterProduct.pageDescription || 'N/A';
+    dengageProduct.category_path = category || 'N/A';
+    dengageProduct.brand = masterProduct.brand || 'N/A';
     dengageProduct.image_link = productImageLink;
     dengageProduct.link = URLUtils.https('Product-Show', 'pid', masterProductId).toString();
-    dengageProduct.publish_date = dengageUtils.formatDate(masterProduct.getOnlineFrom());
+    dengageProduct.publish_date = dengageUtils.formatDate(masterProduct.getOnlineFrom()) || dengageUtils.formatDate(masterProduct.creationDate);
     dengageProduct.stock_count = stockCount;
     dengageProduct.is_active = masterProduct.online;
     dengageProduct.variants = [];
 
     var dengageVariants = [];
     var variants = masterProduct.getVariants().toArray();
+    var variantImage = null;
+    var variantListPrices = [];
+    var variantSalePrices = [];
     // Iterate variants and add to product object
     variants.forEach(function (variant) {
       var dengageVariant = {};
       var variantId = variant.getID();
-      var variantPrice = variant.getPriceModel().getPrice().value;
+      var variantPrices = dengageUtils.getProductPrice(variant);
+      var variantListPrice = variantPrices.listPrice;
+      var variantSalePrice = variantPrices.salePrice;
       var variantImageLink = dengageUtils.getProductImage(variant);
       var variantStockCount = dengageUtils.getStock(inventoryList, variant);
+      if (!variantImage && variantImageLink)
+        variantImage = variantImageLink;
 
       dengageVariant.product_variant_id = variantId;
-      dengageVariant.title = variant.name;
-      dengageVariant.price = variantPrice;
-      dengageVariant.discounted_price = variantPrice;
-      dengageVariant.image_link = variantImageLink;
+      dengageVariant.title = variant.name || 'Untitled';
+      dengageVariant.price = variantListPrice || 0.01;
+      dengageVariant.discounted_price = variantSalePrice || 0.01;
+      dengageVariant.image_link = variantImageLink || 'N/A';
       dengageVariant.stock_count = variantStockCount;
       dengageVariant.size = dengageUtils.getVariantAttributeValue(variant, 'size');
       dengageVariant.color = dengageUtils.getVariantAttributeValue(variant, 'color');
       dengageVariants.push(dengageVariant);
+      if (variantListPrice)
+        variantListPrices.push(variantListPrice);
+      if (variantSalePrice)
+        variantSalePrices.push(variantSalePrice);
     });
     dengageProduct.variants = dengageVariants;
 
-    // If product level price is not set then instead set it to the price of first variant
-    if (!dengageProduct.price && dengageVariants.length) { dengageProduct.price = dengageVariants[0].price; }
-    if (!dengageProduct.discounted_price && dengageVariants.length) { dengageProduct.discounted_price = dengageVariants[0].discounted_price; }
+    if (!dengageProduct.image_link)
+      dengageProduct.image_link = variantImage || 'N/A';
 
-    Logger.info('Product data: ' + JSON.stringify(dengageProduct));
+    // If product level price is not set then instead set it to the price of first variant
+    if (!dengageProduct.price)
+      dengageProduct.price = variantListPrices.length ? variantListPrices[0] : 0.01;
+    if (!dengageProduct.discounted_price)
+      dengageProduct.discounted_price = variantSalePrices.length ? variantSalePrices[0] : 0.01;
+
+    // Logger.info('Product data: ' + JSON.stringify(dengageProduct));
 
     return dengageProduct;
   };
