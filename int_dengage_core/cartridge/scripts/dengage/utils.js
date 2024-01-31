@@ -410,10 +410,41 @@ function getProductPrice(product) {
     listPrice = productPriceModel.maxPrice.value;
     salePrice = productPriceModel.price.value;
     if (salePrice == listPrice) {
-        var listPricebookID = currentSite.getCustomPreferenceValue('listPriceDefault')
-        listPrice = product.priceModel.getPriceBookPrice(listPricebookID).getValue()
+        var listPricebookID = currentSite.getCustomPreferenceValue('listPriceDefault');
+        listPrice = product.priceModel.getPriceBookPrice(listPricebookID).getValue();
     }
     return { salePrice: salePrice, listPrice: listPrice };
+}
+
+function getOrderTotals(order) {
+    var totalExcludingShippingDiscount = order.shippingTotalPrice;
+    var totalExcludingOrderDiscount = order.getAdjustedMerchandizeTotalPrice(false);
+    var totalIncludingShippingDiscount = order.adjustedShippingTotalPrice;
+    var totalIncludingOrderDiscount = order.getAdjustedMerchandizeTotalPrice(true);
+    var fbrChargesIndex = order.priceAdjustments.toArray().map(a => a.promotionID).indexOf('FBRCharges');
+    var orderDiscount = totalExcludingOrderDiscount.subtract(totalIncludingOrderDiscount)
+    if(fbrChargesIndex >= 0)
+        orderDiscount = orderDiscount.add(order.priceAdjustments[fbrChargesIndex].grossPrice);
+    var shippingDiscount = totalExcludingShippingDiscount.subtract(totalIncludingShippingDiscount); 
+    var totalBeforeDiscount = order.totalGrossPrice.add(orderDiscount).add(shippingDiscount);
+    return { totalBeforeDiscount: Math.round(totalBeforeDiscount.value), totalAfterDiscount: Math.round(order.totalGrossPrice.value) }
+}
+
+function getCategoryPath(category) {
+    try {
+        var categories = [];
+        var currentCategory = category;
+        do {
+            if (currentCategory.displayName)
+                categories.push(currentCategory.displayName);
+            currentCategory = currentCategory.parent;
+        } while (currentCategory);
+        categories = categories.reverse();
+        var categoryPath = categories.join(" > ");
+        return categoryPath;    
+    } catch (e) {
+        return '';
+    }
 }
 
 module.exports = {
@@ -447,5 +478,7 @@ module.exports = {
     postCustomersFile: postCustomersFile,
     postOrdersFile: postOrdersFile,
     getProductImage: getProductImage,
-    getProductPrice: getProductPrice
+    getProductPrice: getProductPrice,
+    getOrderTotals: getOrderTotals,
+    getCategoryPath: getCategoryPath
 };

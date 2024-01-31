@@ -10,7 +10,7 @@
                 "module": "int_dengage_core/cartridge/scripts/dengage/exportProducts.js",
                 "function": "exportProductsFile",
                 "transactional": "false",
-                "timeout-in-seconds": "32400",
+                "timeout-in-seconds": "43200",
                 "parameters": {
                     "parameter": []
                 },
@@ -40,7 +40,7 @@
                 "module": "int_dengage_core/cartridge/scripts/dengage/exportCustomers.js",
                 "function": "exportCustomersFile",
                 "transactional": "false",
-                "timeout-in-seconds": "32400",
+                "timeout-in-seconds": "43200",
                 "parameters": {
                     "parameter": []
                 },
@@ -70,7 +70,7 @@
                 "module": "int_dengage_core/cartridge/scripts/dengage/exportOrders.js",
                 "function": "exportOrdersFile",
                 "transactional": "false",
-                "timeout-in-seconds": "32400",
+                "timeout-in-seconds": "43200",
                 "parameters": {
                     "parameter": []
                 },

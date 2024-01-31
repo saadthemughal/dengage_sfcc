@@ -102,13 +102,23 @@ module.exports = function () {
 
                 var validPaymentMethods = ['cash', 'bank_transfer', 'credit_card', 'debit_card', 'mobile_payment', 'check', 'prepaid_card', 'crypto', 'cod', 'online_payment'];
                 var orderCreationDate = dw.util.StringUtils.formatCalendar(new dw.util.Calendar(new Date(order.creationDate)), 'yyyy-MM-dd');
+                
+                var orderTotals = dengageUtils.getOrderTotals(order);
+                var totalBeforeDiscount = orderTotals.totalBeforeDiscount; 
+                var totalAfterDiscount = orderTotals.totalAfterDiscount;
+                
                 dengageOrder.contact_key = order.customerEmail;
                 dengageOrder.order_id = order.orderNo;
                 dengageOrder.order_date = orderCreationDate;
                 dengageOrder.order_status = dengageOrderStatus;
                 dengageOrder.referrer = order.channelType || '';
                 dengageOrder.item_count = itemCount;
-                dengageOrder.total_amount = order.totalGrossPrice.value;
+                if (totalBeforeDiscount > totalAfterDiscount) {
+                    dengageOrder.total_amount = totalBeforeDiscount;
+                    dengageOrder.discounted_price = totalAfterDiscount;
+                } else {
+                    dengageOrder.total_amount = order.totalGrossPrice.value;
+                }
                 if (validPaymentMethods.includes(paymentMethod))
                     dengageOrder.payment_method = paymentMethod;
                 dengageOrder.coupon_code = discountCoupon;

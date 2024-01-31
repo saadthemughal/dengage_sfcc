@@ -3,52 +3,56 @@
 </isscript>
 <isscript>
     if (pdict.category && dengageUtils.dengageEnabled) {
-        var dengageCategories = [];
-        var dengageCurrentCategory = pdict.category;
-        do {
-            if (dengageCurrentCategory.displayName)
-                dengageCategories.push(dengageCurrentCategory.displayName);
-            dengageCurrentCategory = dengageCurrentCategory.parent;
-        } while (dengageCurrentCategory);
-        dengageCategories = dengageCategories.reverse();
-        var dengageCategoryPath = dengageCategories.join(" > ");
+        var dengageCategoryPath = dengageUtils.getCategoryPath(pdict.category);
     }
 </isscript>
 <isscript>
-    if (dengageUtils.dengageEnabled && pdict.currentOrder && pdict.currentOrder.productLineItems) {
-        var dengageProductLines = [];
-        try {
-            var dengageProductMgr = require('dw/catalog/ProductMgr');
-            for (var j in pdict.currentOrder.productLineItems) {
-                productLineItem = pdict.currentOrder.productLineItems[j];
-                // Get the product secondary name
-                var lineItemProduct = productLineItem.product;
-                var productDetail = dengageProductMgr.getProduct(lineItemProduct.ID);
-                if (productDetail) {
-                    var productId = productLineItem.productID;
-                    var productVariantId = '';
-                    if (!productDetail.master && 'masterProduct' in productDetail) {
-                        productId = productDetail.masterProduct.ID;
-                        productVariantId = productLineItem.productID;
+    if (dengageUtils.dengageEnabled && pdict.currentOrder) {
+        if (pdict.currentOrder.productLineItems) {
+            var dengageProductLines = [];
+            try {
+                var dengageProductMgr = require('dw/catalog/ProductMgr');
+                for (var j in pdict.currentOrder.productLineItems) {
+                    productLineItem = pdict.currentOrder.productLineItems[j];
+                    // Get the product secondary name
+                    var lineItemProduct = productLineItem.product;
+                    var productDetail = dengageProductMgr.getProduct(lineItemProduct.ID);
+                    if (productDetail) {
+                        var productId = productLineItem.productID;
+                        var productVariantId = '';
+                        if (!productDetail.master && 'masterProduct' in productDetail) {
+                            productId = productDetail.masterProduct.ID;
+                            productVariantId = productLineItem.productID;
+                        }
+                        var priceData = dengageUtils.priceCheck(productLineItem, productDetail);
+                        var currentLineItem = {};
+                        var discountedPrice = 0;
+                        if (priceData.purchasePriceValue > priceData.originalPriceValue)
+                            discountedPrice = priceData.originalPriceValue;
+                        else if (priceData.purchasePriceValue == 0)
+                            discountedPrice = 0.01;
+                        else
+                            discountedPrice = priceData.purchasePriceValue
+                        currentLineItem.product_id = productId;
+                        currentLineItem.product_variant_id = productVariantId;
+                        currentLineItem.quantity = productLineItem.quantity.value;
+                        currentLineItem.unit_price = priceData.originalPriceValue;
+                        currentLineItem.discounted_price = discountedPrice;
+                        dengageProductLines.push(currentLineItem);
                     }
-                    var priceData = dengageUtils.priceCheck(productLineItem, productDetail);
-                    var currentLineItem = {};
-                    var discountedPrice = 0;
-                    if (priceData.purchasePriceValue > priceData.originalPriceValue)
-                        discountedPrice = priceData.originalPriceValue;
-                    else if (priceData.purchasePriceValue == 0)
-                        discountedPrice = 0.01;
-                    else
-                        discountedPrice = priceData.purchasePriceValue
-                    currentLineItem.product_id = productId;
-                    currentLineItem.product_variant_id = productVariantId;
-                    currentLineItem.quantity = productLineItem.quantity.value;
-                    currentLineItem.unit_price = priceData.originalPriceValue;
-                    currentLineItem.discounted_price = discountedPrice;
-                    dengageProductLines.push(currentLineItem);
                 }
+            } catch (e) {
             }
-        } catch (e) {
+        }
+        var dengageOrderTotalAmount = 0;
+        var dengageOrderDiscountedAmount = 0;
+        try {
+            var dengageOrderTotals = dengageUtils.getOrderTotals(pdict.currentOrder);
+            dengageOrderTotalAmount = dengageOrderTotals.totalBeforeDiscount;
+            dengageOrderDiscountedAmount = dengageOrderTotals.totalAfterDiscount;
+        } catch(e) {
+            dengageOrderTotalAmount = pdict.currentOrder.totalGrossPrice.value;
+            dengageOrderDiscountedAmount = 0;
         }
     }
 </isscript>
@@ -74,10 +78,10 @@
     remote include for pages whose controllers are cached OOTB
 </iscomment>
 <!--- TEMPLATENAME: dengage_snippets.isml --->
-<script>
-    console.log('Dengage snippets loaded!');
-</script>
 <isif condition="${dengageUtils.dengageEnabled}">
+    <script>
+        console.log('Dengage snippets loaded!');
+    </script>
     <script>
         !function(e, a, n, d, g) {
             e.dengage = e.dengage || function() {
@@ -296,7 +300,8 @@
             let orderObj = {
                 order_id: "${pdict.currentOrder.orderNo}",
                 item_count: ${pdict.currentOrder.productQuantityTotal},
-                total_amount: ${pdict.currentOrder.totalGrossPrice.value},
+                total_amount: ${dengageOrderTotalAmount},
+                discounted_price: ${dengageOrderDiscountedAmount},
                 payment_method: "${pdict.currentOrder.paymentInstruments.length ? pdict.currentOrder.paymentInstruments[0].paymentMethod : ''}",
                 shipping: ${pdict.currentOrder.adjustedShippingTotalPrice.value},
                 coupon_code: "${pdict.currentOrder.couponLineItems.length ? pdict.currentOrder.couponLineItems[0].couponCode : ''}",

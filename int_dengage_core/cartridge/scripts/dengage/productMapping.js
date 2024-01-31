@@ -22,7 +22,12 @@ module.exports = function () {
     if (product.variant) { masterProduct = product.masterProduct; } else { masterProduct = product; }
 
     var masterProductId = masterProduct.getID();
-    var category = masterProduct.primaryCategory ? masterProduct.primaryCategory.displayName : '';
+    var category = masterProduct.primaryCategory ? masterProduct.primaryCategory : '';
+    if (!category)
+      category = masterProduct.allCategories.length ? masterProduct.allCategories[0] : '';
+    var categoryPath = '';
+    if (category)
+      categoryPath = dengageUtils.getCategoryPath(category);
 
     var productImageLink = dengageUtils.getProductImage(masterProduct);
 
@@ -31,14 +36,15 @@ module.exports = function () {
     var productSalePrice = productPrices.salePrice;
     var inventoryList = ProductInventoryMgr.getInventoryList();
     var stockCount = dengageUtils.getStock(inventoryList, product);
+    var description = masterProduct.shortDescription ? masterProduct.shortDescription.markup : 'N/A';
 
     // Parse product information and place in product object
     dengageProduct.product_id = masterProductId;
     dengageProduct.title = masterProduct.name || 'Untitled';
-    dengageProduct.price = productListPrice;
-    dengageProduct.discounted_price = productSalePrice;
-    dengageProduct.description = masterProduct.pageDescription || 'N/A';
-    dengageProduct.category_path = category || 'N/A';
+    dengageProduct.price = productListPrice || 0.01;
+    dengageProduct.discounted_price = productSalePrice || 0.01;
+    dengageProduct.description = description || 'N/A';
+    dengageProduct.category_path = categoryPath || 'N/A';
     dengageProduct.brand = masterProduct.brand || 'N/A';
     dengageProduct.image_link = productImageLink;
     dengageProduct.link = URLUtils.https('Product-Show', 'pid', masterProductId).toString();
@@ -72,22 +78,26 @@ module.exports = function () {
       dengageVariant.stock_count = variantStockCount;
       dengageVariant.size = dengageUtils.getVariantAttributeValue(variant, 'size');
       dengageVariant.color = dengageUtils.getVariantAttributeValue(variant, 'color');
+      if (dengageVariant.discounted_price > dengageVariant.price)
+        dengageVariant.price = dengageVariant.discounted_price;
       dengageVariants.push(dengageVariant);
       if (variantListPrice)
-        variantListPrices.push(variantListPrice);
+        variantListPrices.push(dengageVariant.price);
       if (variantSalePrice)
-        variantSalePrices.push(variantSalePrice);
+        variantSalePrices.push(dengageVariant.discounted_price);
     });
     dengageProduct.variants = dengageVariants;
 
     if (!dengageProduct.image_link)
       dengageProduct.image_link = variantImage || 'N/A';
 
-    // If product level price is not set then instead set it to the price of first variant
-    if (!dengageProduct.price)
-      dengageProduct.price = variantListPrices.length ? variantListPrices[0] : 0.01;
-    if (!dengageProduct.discounted_price)
-      dengageProduct.discounted_price = variantSalePrices.length ? variantSalePrices[0] : 0.01;
+    if (variantListPrices.length)
+      dengageProduct.price = variantListPrices[0];
+    if (variantSalePrices.length)
+      dengageProduct.discounted_price = variantSalePrices[0];
+
+    if (dengageProduct.discounted_price > dengageProduct.price)
+      dengageProduct.price = dengageProduct.discounted_price;
 
     // Logger.info('Product data: ' + JSON.stringify(dengageProduct));
 
