@@ -106,7 +106,10 @@
         if (pageAction == 'Product-Show') {
             <isif condition="${pdict.product !== null}">
                 let salePrice = ${pdict.product.price.sales.value};
-                let listPrice = ${pdict.product.price.list.value};
+                let listPrice = null;
+                <isif condition = "${pdict.product.price.list !== null}">
+                    listPrice = ${pdict.product.price.list.value};
+                </isif>
                 let dengageUnitPrice = listPrice ? Math.round(listPrice) : Math.round(salePrice);
                 let dengageDiscountedPrice = salePrice && salePrice < listPrice ? Math.round(salePrice) : '';
                 <isif condition = "${pdict.product && !pdict.product.readyToOrder}">
