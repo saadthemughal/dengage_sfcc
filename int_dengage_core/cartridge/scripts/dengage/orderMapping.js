@@ -111,7 +111,9 @@ module.exports = function () {
                 dengageOrder.order_id = order.orderNo;
                 dengageOrder.order_date = orderCreationDate;
                 dengageOrder.order_status = dengageOrderStatus;
-                dengageOrder.referrer = order.channelType || '';
+                dengageOrder.referrer = '';
+                if (order.channelType)
+                    dengageOrder.referrer = order.channelType.displayValue;
                 dengageOrder.item_count = itemCount;
                 if (totalBeforeDiscount > totalAfterDiscount) {
                     dengageOrder.total_amount = totalBeforeDiscount;
