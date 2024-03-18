@@ -107,11 +107,17 @@
             <isif condition="${pdict.product !== null}">
                 let salePrice = ${pdict.product.price.sales.value};
                 let listPrice = null;
+                let roundValues = ${dengageUtils.dnRoundPrices};
                 <isif condition = "${pdict.product.price.list !== null}">
                     listPrice = ${pdict.product.price.list.value};
                 </isif>
-                let dengageUnitPrice = listPrice ? Math.round(listPrice) : Math.round(salePrice);
-                let dengageDiscountedPrice = salePrice && salePrice < listPrice ? Math.round(salePrice) : '';
+                if (roundValues) {
+                    let dengageUnitPrice = listPrice ? Math.round(listPrice) : Math.round(salePrice);
+                    let dengageDiscountedPrice = salePrice && salePrice < listPrice ? Math.round(salePrice) : '';
+                } else {
+                    let dengageUnitPrice = listPrice ? listPrice : salePrice;
+                    let dengageDiscountedPrice = salePrice && salePrice < listPrice ? salePrice : '';
+                }
                 <isif condition = "${pdict.product && !pdict.product.readyToOrder}">
                     let dengageProductAvailability = 0; 
                 <iselse/>

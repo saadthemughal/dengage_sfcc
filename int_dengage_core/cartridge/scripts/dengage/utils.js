@@ -29,6 +29,7 @@ var dnServiceWorker = getCustomPreference('dengage_service_worker_snippet', '');
 var dnRegion = getCustomPreference('dengage_region', 'Turkey');
 var dnApiKey = getCustomPreference('dengage_api_key', null);
 var dnApiPassword = getCustomPreference('dengage_api_password', null);
+var dnRoundPrices = getCustomPreference('dengage_round_prices', true);
 
 var dnTransactionUrls = {
     'order': '/rest/dataspace/ecomm/orders_detail/upsert',
@@ -423,11 +424,16 @@ function getOrderTotals(order) {
     var totalIncludingOrderDiscount = order.getAdjustedMerchandizeTotalPrice(true);
     var fbrChargesIndex = order.priceAdjustments.toArray().map(a => a.promotionID).indexOf('FBRCharges');
     var orderDiscount = totalExcludingOrderDiscount.subtract(totalIncludingOrderDiscount)
-    if(fbrChargesIndex >= 0)
+    if (fbrChargesIndex >= 0)
         orderDiscount = orderDiscount.add(order.priceAdjustments[fbrChargesIndex].grossPrice);
-    var shippingDiscount = totalExcludingShippingDiscount.subtract(totalIncludingShippingDiscount); 
-    var totalBeforeDiscount = order.totalGrossPrice.add(orderDiscount).add(shippingDiscount);
-    return { totalBeforeDiscount: Math.round(totalBeforeDiscount.value), totalAfterDiscount: Math.round(order.totalGrossPrice.value) }
+    var shippingDiscount = totalExcludingShippingDiscount.subtract(totalIncludingShippingDiscount);
+    var totalBeforeDiscount = order.totalGrossPrice.add(orderDiscount).add(shippingDiscount).value;
+    var totalGrossPrice = order.totalGrossPrice.value;
+    if (dnRoundPrices) {
+        totalBeforeDiscount = Math.round(totalBeforeDiscount);
+        totalGrossPrice = Math.round(totalGrossPrice);
+    }
+    return { totalBeforeDiscount: totalBeforeDiscount, totalAfterDiscount: totalGrossPrice }
 }
 
 function getCategoryPath(category) {
@@ -441,7 +447,7 @@ function getCategoryPath(category) {
         } while (currentCategory);
         categories = categories.reverse();
         var categoryPath = categories.join(" > ");
-        return categoryPath;    
+        return categoryPath;
     } catch (e) {
         return '';
     }
@@ -451,6 +457,7 @@ module.exports = {
     dengageEnabled: dengageEnabled,
     dnAccountId: dnAccountId,
     dnAppGuid: dnAppGuid,
+    dnRoundPrices: dnRoundPrices,
     dnTransactionUrls: dnTransactionUrls,
     dnContactColumns: dnContactColumns,
     dnCategoryColumns: dnCategoryColumns,
