@@ -240,10 +240,11 @@ function sendTransaction(data, transaction, forceToken) {
             orders: data
         }
     } else if (transaction == 'customer') {
+        var contactColumns = data.length ? Object.keys(data[0]) : dnContactColumns;
         requestObj.data = {
             insertIfNotExists: true,
             throwExceptionIfInvalidRecord: true,
-            columns: dnContactColumns,
+            columns: contactColumns,
             contactDatas: data
         }
     } else if (transaction == 'category') {
@@ -307,10 +308,22 @@ function getDengageToken(forceFetch) {
     return token;
 }
 
+function validateEmail(email) {
+    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailPattern.test(StringUtils.trim(email));
+}
+
+function getDate() {
+    var tzString = System.getInstanceTimeZone();
+    var calendar = new Calendar();
+    calendar.setTimeZone(tzString);
+    var formattedDate = StringUtils.formatCalendar(calendar, 'yyyy-MM-dd');
+    return formattedDate;
+}
+
 function getTime() {
     var tzString = System.getInstanceTimeZone();
     var calendar = new Calendar();
-
     calendar.setTimeZone(tzString);
     return calendar.getTime();
 }
@@ -423,9 +436,9 @@ function getOrderTotals(order) {
     var totalIncludingOrderDiscount = order.getAdjustedMerchandizeTotalPrice(true);
     var fbrChargesIndex = order.priceAdjustments.toArray().map(a => a.promotionID).indexOf('FBRCharges');
     var orderDiscount = totalExcludingOrderDiscount.subtract(totalIncludingOrderDiscount)
-    if(fbrChargesIndex >= 0)
+    if (fbrChargesIndex >= 0)
         orderDiscount = orderDiscount.add(order.priceAdjustments[fbrChargesIndex].grossPrice);
-    var shippingDiscount = totalExcludingShippingDiscount.subtract(totalIncludingShippingDiscount); 
+    var shippingDiscount = totalExcludingShippingDiscount.subtract(totalIncludingShippingDiscount);
     var totalBeforeDiscount = order.totalGrossPrice.add(orderDiscount).add(shippingDiscount);
     return { totalBeforeDiscount: Math.round(totalBeforeDiscount.value), totalAfterDiscount: Math.round(order.totalGrossPrice.value) }
 }
@@ -441,7 +454,7 @@ function getCategoryPath(category) {
         } while (currentCategory);
         categories = categories.reverse();
         var categoryPath = categories.join(" > ");
-        return categoryPath;    
+        return categoryPath;
     } catch (e) {
         return '';
     }
@@ -471,6 +484,8 @@ module.exports = {
     trackEvent: trackEvent,
     sendTransaction: sendTransaction,
     getDengageToken: getDengageToken,
+    validateEmail: validateEmail,
+    getDate: getDate,
     getTime: getTime,
     getTimestamp: getTimestamp,
     getStock: getStock,

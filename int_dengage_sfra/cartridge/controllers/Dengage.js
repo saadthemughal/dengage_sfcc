@@ -41,4 +41,41 @@ server.get('Product', function (req, res, next) {
     return next();
 });
 
+server.post('Subscriber', function (req, res, next) {
+    var email = req.querystring.email;
+    var validEmail = dengageUtils.validateEmail(email);
+    var response = {};
+    if (validEmail) {
+        var dengageCustomers = [];
+        var dengageCustomer = {};
+        var currentDate = dengageUtils.getDate();
+
+        dengageCustomer.contact_key = email;
+        dengageCustomer.name = '';
+        dengageCustomer.surname = '';
+        dengageCustomer.source = 'newsletter';
+        dengageCustomer.contact_status = 'A';
+        dengageCustomer.email = email;
+        dengageCustomer.email_permission = true;
+        dengageCustomer.gsm_permission = false;
+        dengageCustomer.subscription_date = currentDate;
+        dengageCustomer.gsm = 'N/A';
+        dengageCustomer.gender = '';
+        dengageCustomer.birth_date = '';
+
+        dengageCustomers.push(dengageCustomer);
+
+        dengageUtils.sendTransaction(dengageCustomers, 'customer');
+
+        response.success = true;
+    } else {
+        response.success = false;
+        response.error = 'Please enter a valid email address';
+    }
+
+    res.json(response);
+
+    return next();
+});
+
 module.exports = server.exports();
