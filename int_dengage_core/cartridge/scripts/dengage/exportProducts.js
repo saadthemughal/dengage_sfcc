@@ -38,12 +38,7 @@ function exportProductsFile(options) {
       while (searchProducts.hasNext()) {
         var product = searchProducts.next();
         var productId = product.variant ? product.masterProduct.getID() : product.getID();
-        var syncProduct = false;
-        if (firstSync) {
-          syncProduct = product.creationDate <= dengageProductsDateUpdate;
-        } else {
-          syncProduct = product.lastModified >= dengageProductsDateUpdate;
-        }
+        var syncProduct = product.creationDate <= newDengageProductsDateUpdate;
         if (syncProduct && !productIdsAdded.includes(productId)) {
           var productMapping = new ProductMapping();
           var dengageProduct = productMapping.execute(product);
