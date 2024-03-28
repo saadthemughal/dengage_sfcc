@@ -65,7 +65,7 @@ server.post('Subscriber', function (req, res, next) {
 
         dengageCustomers.push(dengageCustomer);
 
-        dengageUtils.sendTransaction(dengageCustomers, 'customer');
+        dengageUtils.sendTransaction(dengageCustomers, 'customer', true, true);
 
         response.success = true;
     } else {

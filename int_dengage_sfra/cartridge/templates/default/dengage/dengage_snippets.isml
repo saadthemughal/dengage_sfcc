@@ -156,30 +156,31 @@
         } else if (isCheckout) {
             var siteName = "${dw.system.Site.current.ID}";
             var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
-            $.ajax({
-                url: url,
-                type: 'get',
-                dataType: 'json',
-                success: function(data) {
-                    let checkoutItems = [];
-                    $.each(data.items, function(index, val) {
-                        let discountedPrice = unitPrice = val.price.sales.value;
-                        if (val.price.list) 
-                            unitPrice = val.price.list.value;
-                        if (discountedPrice >= unitPrice)
-                            discountedPrice = '';
-                        checkoutItems.push({
-                            product_id: val.id,
-                            product_variant_id: '',
-                            quantity: val.quantity,
-                            unit_price: unitPrice,
-                            discounted_price: discountedPrice
-                        });
-                    });
-                    dengage("ec:beginCheckout", {
-                        cartItems: checkoutItems
-                    });
+            fetch(url).then(function(response) {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
+                return response.json();
+            }).then(function(data) {
+                var checkoutItems = [];
+                data.items.forEach(function(val) {
+                    var discountedPrice = unitPrice = val.price.sales.value;
+                    if (val.price.list)
+                        unitPrice = val.price.list.value;
+                    if (discountedPrice >= unitPrice)
+                        discountedPrice = '';
+                    checkoutItems.push({
+                        product_id: val.id,
+                        product_variant_id: '',
+                        quantity: val.quantity,
+                        unit_price: unitPrice,
+                        discounted_price: discountedPrice
+                    });
+                });
+                dengage("ec:beginCheckout", {
+                    cartItems: checkoutItems
+                });
+            }).catch(function(error) {
             });
         } else {
             dengage("ec:pageView", {
@@ -188,108 +189,117 @@
         }
     </script>
     <script>
-        $(document).ready(function() {
-            function convertDataToJSON(data) {
-                var urlParams = new
-                URLSearchParams(data);
-                var result = {};
-                for (var pair of urlParams.entries()) {
-                    result[pair[0]] = decodeURIComponent(pair[1]);
-                }
-                if (result.options) {
-                    result.options =
-                        JSON.parse(result.options);
-                }
-                return result;
+        var waitForJquery = setInterval(function () {
+            if (typeof $ != 'undefined') {
+                clearInterval(waitForJquery);
+                JqueryCode();
             }
-            $(document).ajaxComplete(function(event, xhr,
-                options) {
-                if (options.url.includes("Cart-AddProduct")) {
-                    let data = convertDataToJSON(options.data);
-                    let productId = data.pid;
-                    let quantity = data.quantity;
-                    var siteName = "${dw.system.Site.current.ID}";
-                    var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
-                    $.ajax({
-                        url: url,
-                        type: 'get',
-                        dataType: 'json',
-                        success: function(data) {
-                            console.log(data);
-                            $.each(data.items, function(index, val) {
-                                if (val.id == productId) {
-                                    let discountedPrice = unitPrice = val.price.sales.value;
-                                    if (val.price.list) unitPrice = val.price.list.value;
-                                    if (discountedPrice >= unitPrice)
-                                        discountedPrice = '';
-                                    dengage('ec:addToCart', {
-                                        product_id: val.skuKey,
-                                        product_variant_id: productId,
-                                        quantity: quantity,
-                                        unit_price: unitPrice,
-                                        discounted_price: discountedPrice
-                                    });
-                                }
-                            });
-                        }
-                    });
-                } else if (options.url.includes("Cart-RemoveProductLineItem")) {
-                    let queryParams = options.url.substr(options.url.indexOf("?") + 1);
-                    let data = convertDataToJSON(queryParams);
-                    let productId = data.pid;
-                    var siteName = "${dw.system.Site.current.ID}";
-                    var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Product?productId=' + productId;
-                    $.ajax({
-                        url: url,
-                        type: 'get',
-                        dataType: 'json',
-                        success: function(data) {
-                            if (data) {
-                                dengage('ec:removeFromCart', {
-                                    product_id: data.product_id,
-                                    product_variant_id: data.product_variant_id,
-                                    unit_price: data.unit_price,
-                                    discounted_price: data.discounted_price,
-                                    quantity: 0
+        }, 250);
+
+        function JqueryCode() {
+            $(document).ready(function() {
+                function convertDataToJSON(data) {
+                    var urlParams = new
+                    URLSearchParams(data);
+                    var result = {};
+                    for (var pair of urlParams.entries()) {
+                        result[pair[0]] = decodeURIComponent(pair[1]);
+                    }
+                    if (result.options) {
+                        result.options =
+                            JSON.parse(result.options);
+                    }
+                    return result;
+                }
+                $(document).ajaxComplete(function(event, xhr,
+                    options) {
+                    if (options.url.includes("Cart-AddProduct")) {
+                        let data = convertDataToJSON(options.data);
+                        let productId = data.pid;
+                        let quantity = data.quantity;
+                        var siteName = "${dw.system.Site.current.ID}";
+                        var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
+                        $.ajax({
+                            url: url,
+                            type: 'get',
+                            dataType: 'json',
+                            success: function(data) {
+                                console.log(data);
+                                $.each(data.items, function(index, val) {
+                                    if (val.id == productId) {
+                                        let discountedPrice = unitPrice = val.price.sales.value;
+                                        if (val.price.list) unitPrice = val.price.list.value;
+                                        if (discountedPrice >= unitPrice)
+                                            discountedPrice = '';
+                                        dengage('ec:addToCart', {
+                                            product_id: val.skuKey,
+                                            product_variant_id: productId,
+                                            quantity: quantity,
+                                            unit_price: unitPrice,
+                                            discounted_price: discountedPrice
+                                        });
+                                    }
                                 });
                             }
-                        }
-                    });
-                } else if (options.url.includes("Cart-UpdateQuantity")) {
-                    let queryParams = options.url.substr(options.url.indexOf("?") + 1);
-                    let data = convertDataToJSON(queryParams);
-                    let productId = data.pid;
-                    var siteName = "${dw.system.Site.current.ID}";
-                    let quantity = data.quantity;
-                    let previousQuantity = data.prevQty;
-                    var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
-                    $.ajax({
-                        url: url,
-                        type: 'get',
-                        dataType: 'json',
-                        success: function(data) {
-                            $.each(data.items, function(index, val) {
-                                if (val.id == productId) {
-                                    let discountedPrice = unitPrice = val.price.sales.value;
-                                    if (val.price.list) unitPrice = val.price.list.value;
-                                    let eventType = '';
-                                    if (previousQuantity > quantity) eventType = 'ec:removeFromCart';
-                                    else if (previousQuantity < quantity)
-                                        eventType = 'ec:addToCart';
-                                    dengage(eventType, {
-                                        product_id: val.skuKey,
-                                        product_variant_id: productId,
-                                        quantity: quantity,
-                                        unit_price: unitPrice,
-                                        discounted_price: discountedPrice
+                        });
+                    } else if (options.url.includes("Cart-RemoveProductLineItem")) {
+                        let queryParams = options.url.substr(options.url.indexOf("?") + 1);
+                        let data = convertDataToJSON(queryParams);
+                        let productId = data.pid;
+                        var siteName = "${dw.system.Site.current.ID}";
+                        var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Product?productId=' + productId;
+                        $.ajax({
+                            url: url,
+                            type: 'get',
+                            dataType: 'json',
+                            success: function(data) {
+                                if (data) {
+                                    dengage('ec:removeFromCart', {
+                                        product_id: data.product_id,
+                                        product_variant_id: data.product_variant_id,
+                                        unit_price: data.unit_price,
+                                        discounted_price: data.discounted_price,
+                                        quantity: 0
                                     });
                                 }
-                            });
-                        }
-                    });
-                }
+                            }
+                        });
+                    } else if (options.url.includes("Cart-UpdateQuantity")) {
+                        let queryParams = options.url.substr(options.url.indexOf("?") + 1);
+                        let data = convertDataToJSON(queryParams);
+                        let productId = data.pid;
+                        var siteName = "${dw.system.Site.current.ID}";
+                        let quantity = data.quantity;
+                        let previousQuantity = data.prevQty;
+                        var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
+                        $.ajax({
+                            url: url,
+                            type: 'get',
+                            dataType: 'json',
+                            success: function(data) {
+                                $.each(data.items, function(index, val) {
+                                    if (val.id == productId) {
+                                        let discountedPrice = unitPrice = val.price.sales.value;
+                                        if (val.price.list) unitPrice = val.price.list.value;
+                                        let eventType = '';
+                                        if (previousQuantity > quantity) eventType = 'ec:removeFromCart';
+                                        else if (previousQuantity < quantity)
+                                            eventType = 'ec:addToCart';
+                                        dengage(eventType, {
+                                            product_id: val.skuKey,
+                                            product_variant_id: productId,
+                                            quantity: quantity,
+                                            unit_price: unitPrice,
+                                            discounted_price: discountedPrice
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
             });
-        });
+        }
     </script>
     <isif condition="${pdict.currentOrder}">
         <script>

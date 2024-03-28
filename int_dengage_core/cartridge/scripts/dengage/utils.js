@@ -211,12 +211,13 @@ function trackEvent(data, event, customerEmail) {
 }
 
 // AV: Idea is to use this function to send data to create transactions in Dengage
-function sendTransaction(data, transaction, forceToken) {
+function sendTransaction(data, transaction, forceToken, saveToken) {
     forceToken = forceToken || false;
+    saveToken = saveToken || true;
 
     var service = dengageServices.sendTransaction();
 
-    var dengageToken = getDengageToken(forceToken);
+    var dengageToken = getDengageToken(forceToken, saveToken);
     if (!dengageToken) {
         logger.error('Failed to fetch Dengage Token when trying to send transaction: ' + transaction);
         return false;
@@ -274,8 +275,9 @@ function sendTransaction(data, transaction, forceToken) {
     return false;
 }
 
-function getDengageToken(forceFetch) {
-    var forceFetch = forceFetch || false;
+function getDengageToken(forceFetch, saveToken) {
+    forceFetch = forceFetch || false;
+    saveToken = saveToken || true;
     var token = Site.getCurrent().getCustomPreferenceValue('dengage_token') || null;
     if (!token || forceFetch) {
         var service = dengageServices.getToken();
@@ -292,9 +294,11 @@ function getDengageToken(forceFetch) {
             var response = result.object;
             if (response.access_token) {
                 token = response.access_token;
-                Transaction.wrap(function () {
-                    Site.getCurrent().setCustomPreferenceValue('dengage_token', token);
-                });
+                if (saveToken) {
+                    Transaction.wrap(function () {
+                        Site.getCurrent().setCustomPreferenceValue('dengage_token', token);
+                    });
+                }
                 logger.error('Dengage token fetched successfully : ' + token);
             } else if (response == null) {
                 logger.error('dengageServices.getDengageToken call returned null result');
