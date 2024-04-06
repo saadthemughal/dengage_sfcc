@@ -7,13 +7,19 @@
     }
 </isscript>
 <isscript>
-    if (dengageUtils.dengageEnabled && pdict.currentOrder) {
-        if (pdict.currentOrder.productLineItems) {
+    var dengageOrderStorefront = pdict.currentOrder || pdict.order;
+    var dengageOrderNumber = '';
+    var dengageOrder = null;
+    if (dengageUtils.dengageEnabled && dengageOrderStorefront) {
+        var dengageOrderMgr = require('dw/order/OrderMgr');
+        dengageOrderNumber = dengageOrderStorefront.orderNo || dengageOrderStorefront.orderNumber;
+        dengageOrder = dengageOrderMgr.getOrder(dengageOrderNumber);
+        if (dengageOrder.productLineItems) {
             var dengageProductLines = [];
             try {
                 var dengageProductMgr = require('dw/catalog/ProductMgr');
-                for (var j in pdict.currentOrder.productLineItems) {
-                    productLineItem = pdict.currentOrder.productLineItems[j];
+                for (var j in dengageOrder.productLineItems) {
+                    productLineItem = dengageOrder.productLineItems[j];
                     // Get the product secondary name
                     var lineItemProduct = productLineItem.product;
                     var productDetail = dengageProductMgr.getProduct(lineItemProduct.ID);
@@ -47,11 +53,11 @@
         var dengageOrderTotalAmount = 0;
         var dengageOrderDiscountedAmount = 0;
         try {
-            var dengageOrderTotals = dengageUtils.getOrderTotals(pdict.currentOrder);
+            var dengageOrderTotals = dengageUtils.getOrderTotals(dengageOrder);
             dengageOrderTotalAmount = dengageOrderTotals.totalBeforeDiscount;
             dengageOrderDiscountedAmount = dengageOrderTotals.totalAfterDiscount;
         } catch(e) {
-            dengageOrderTotalAmount = pdict.currentOrder.totalGrossPrice.value;
+            dengageOrderTotalAmount = dengageOrder.totalGrossPrice.value;
             dengageOrderDiscountedAmount = 0;
         }
     }
@@ -102,7 +108,9 @@
             pageAction = pageElement.getAttribute('data-action');
         }
         var isHomepage = document.querySelector('.homepage') != null;
-        var isCheckout = window.location.pathname.split("/").pop() == 'checkout';
+        var pageName = window.location.pathname.split("/").pop();
+        pageName = pageName ? pageName.toLowerCase() : '';
+        var isCheckout = pageName == 'checkout' || pageName == 'checkout-begin';
         if (pageAction == 'Product-Show') {
             <isif condition="${pdict.product !== null}">
                 let salePrice = ${pdict.product.price.sales.value};
@@ -117,7 +125,7 @@
                 <iselse/>
                     let dengageProductAvailability = 1; 
                 </isif>
-                var productSkuKey = "${pdict.product.skuKey}";
+                var productSkuKey = "${pdict.product.skuKey || pdict.product.id}";
                 dengage("ec:pageView", {
                     page_type: "product",
                     product_id: productSkuKey,
@@ -139,7 +147,7 @@
             } else {
                 var searchResultCountElement = document.querySelector('.search-result-count');
                 if (searchResultCountElement) {
-                    var searchResultCount = searchResultCountElement.innerHTML.toLowerCase().replace(' results', '').trim();
+                    var searchResultCount = searchResultCountElement.innerHTML.toLowerCase().replace(' results for', '').replace(' results', '').trim();
                     var urlParams = new URLSearchParams(window.location.search);
                     var searchQuery = urlParams.get('q');
                     dengage("ec:search", {
@@ -232,7 +240,7 @@
                                         if (discountedPrice >= unitPrice)
                                             discountedPrice = '';
                                         dengage('ec:addToCart', {
-                                            product_id: val.skuKey,
+                                            product_id: val.skuKey || val.id,
                                             product_variant_id: productId,
                                             quantity: quantity,
                                             unit_price: unitPrice,
@@ -286,7 +294,7 @@
                                         else if (previousQuantity < quantity)
                                             eventType = 'ec:addToCart';
                                         dengage(eventType, {
-                                            product_id: val.skuKey,
+                                            product_id: val.skuKey || val.id,
                                             product_variant_id: productId,
                                             quantity: quantity,
                                             unit_price: unitPrice,
@@ -301,17 +309,19 @@
             });
         }
     </script>
-    <isif condition="${pdict.currentOrder}">
+    <isif condition="${dengageOrder !== null}">
         <script>
-            dengage("setContactKey", "${pdict.currentOrder.customerEmail}");
+            <isif condition="${dengageOrder.customerEmail}">
+                dengage("setContactKey", "${dengageOrder.customerEmail}");
+            </isif>
             let orderObj = {
-                order_id: "${pdict.currentOrder.orderNo}",
-                item_count: ${pdict.currentOrder.productQuantityTotal},
+                order_id: "${dengageOrder.orderNo}",
+                item_count: ${dengageOrder.productQuantityTotal},
                 total_amount: ${dengageOrderTotalAmount},
                 discounted_price: ${dengageOrderDiscountedAmount},
-                payment_method: "${pdict.currentOrder.paymentInstruments.length ? pdict.currentOrder.paymentInstruments[0].paymentMethod : ''}",
-                shipping: ${pdict.currentOrder.adjustedShippingTotalPrice.value},
-                coupon_code: "${pdict.currentOrder.couponLineItems.length ? pdict.currentOrder.couponLineItems[0].couponCode : ''}",
+                payment_method: "${dengageOrder.paymentInstruments.length ? dengageOrder.paymentInstruments[0].paymentMethod : ''}",
+                shipping: ${dengageOrder.adjustedShippingTotalPrice.value},
+                coupon_code: "${dengageOrder.couponLineItems.length ? dengageOrder.couponLineItems[0].couponCode : ''}",
                 cartItems: []
             };
             let dengageCartItems = [];
@@ -324,7 +334,7 @@
                     discounted_price: ${lineItem.discounted_price}
                 };
             </isloop>
-            if (dengageCartItems.length) {
+            if (orderObj.order_id && dengageCartItems.length) {
                 orderObj.cartItems = dengageCartItems;
                 dengage("ec:order", orderObj);
             }

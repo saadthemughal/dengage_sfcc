@@ -17,9 +17,9 @@ function exportOrdersFile(options) {
     if (dengageUtils.dengageEnabled) {
         var searchOrders;
         var newDengageOrdersDateUpdate = dengageUtils.getTime();
-    
+
         var dengageOrdersDateUpdate = Site.getCurrent().getCustomPreferenceValue('dengage_orders_date_update');
-    
+
         if (!dengageOrdersDateUpdate) {
             dengageOrdersDateUpdate = newDengageOrdersDateUpdate;
             searchOrders = OrderMgr.queryOrders(
@@ -34,19 +34,19 @@ function exportOrdersFile(options) {
                 dengageOrdersDateUpdate
             );
         }
-    
+
         Transaction.wrap(function () {
             Site.getCurrent().setCustomPreferenceValue('dengage_orders_date_update',
                 newDengageOrdersDateUpdate);
         });
-    
+
         Logger.info(['call-exportOrdersFile', searchOrders.getCount(), dengageOrdersDateUpdate, Site.getCurrent().getCustomPreferenceValue('dengage_orders_date_update')]);
         var limit = 999999999;
-    
+
         var newDengageOrdersDateUpdate = dengageUtils.getTime();
         var date = newDengageOrdersDateUpdate;
         var counter = 0;
-    
+
         if (searchOrders.hasNext()) {
             var dengageOrders = [];
             var dengageCustomers = [];
@@ -54,7 +54,7 @@ function exportOrdersFile(options) {
                 var order = searchOrders.next();
                 var orderMapping = new OrderMapping();
                 var dengageOrder = orderMapping.execute(order);
-                if (dengageOrder)
+                if (dengageOrder && dengageOrder.order_id)
                     dengageOrders.push(dengageOrder);
                 if (dengageOrder && dengageOrder.dengageCustomer)
                     dengageCustomers.push(dengageOrder.dengageCustomer);
@@ -75,7 +75,7 @@ function exportOrdersFile(options) {
                 dengageUtils.sendTransaction(dengageCustomers, 'customer');
             Logger.info(['call-exportOrdersFile-finished', limit, counter]);
         }
-    }        
+    }
 }
 
 

@@ -29,10 +29,13 @@ module.exports = function () {
                     productLineItem = productLineItems[j];
 
                     // Get the product secondary name
-                    var lineItemProduct = productLineItem.product;
-                    var productDetail = ProductMgr.getProduct(lineItemProduct.ID);
+                    var lineItemID = productLineItem.product ? productLineItem.product.ID : productLineItem.productID;
+                    if (!lineItemID) {
+                        throw new Error('Invalid product line item (missing product ID) found when sending order data for Order # ' + order.orderNo);
+                    }
+                    var productDetail = ProductMgr.getProduct(lineItemID);
                     if (!productDetail) {
-                        throw new Error('Product with ID [' + lineItemProduct.ID + '] not found');
+                        throw new Error('Product with ID [' + lineItemID + '] not found');
                     }
 
                     var productId = productLineItem.productID;
@@ -102,11 +105,11 @@ module.exports = function () {
 
                 var validPaymentMethods = ['cash', 'bank_transfer', 'credit_card', 'debit_card', 'mobile_payment', 'check', 'prepaid_card', 'crypto', 'cod', 'online_payment'];
                 var orderCreationDate = dw.util.StringUtils.formatCalendar(new dw.util.Calendar(new Date(order.creationDate)), 'yyyy-MM-dd');
-                
+
                 var orderTotals = dengageUtils.getOrderTotals(order);
-                var totalBeforeDiscount = orderTotals.totalBeforeDiscount; 
+                var totalBeforeDiscount = orderTotals.totalBeforeDiscount;
                 var totalAfterDiscount = orderTotals.totalAfterDiscount;
-                
+
                 dengageOrder.contact_key = order.customerEmail;
                 dengageOrder.order_id = order.orderNo;
                 dengageOrder.order_date = orderCreationDate;

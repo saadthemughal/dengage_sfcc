@@ -212,8 +212,8 @@ function trackEvent(data, event, customerEmail) {
 
 // AV: Idea is to use this function to send data to create transactions in Dengage
 function sendTransaction(data, transaction, forceToken, saveToken) {
-    forceToken = forceToken || false;
-    saveToken = saveToken || true;
+    forceToken = forceToken === null ? false : forceToken;
+    saveToken = saveToken === null ? true : saveToken;
 
     var service = dengageServices.sendTransaction();
 
@@ -268,7 +268,7 @@ function sendTransaction(data, transaction, forceToken, saveToken) {
         logger.info(transaction + ' data sent to Dengage successfully. Response : ' + JSON.stringify(result.object));
         return true;
     } else if (!result.ok && !forceToken && (result.error == 403 || result.error == 401)) {
-        sendTransaction(data, transaction, true);
+        sendTransaction(data, transaction, true, saveToken);
     } else {
         logger.error('Failed to send ' + transaction + ' data to Dengage due to unknown error: ' + result.errorMessage + ' and additional info: ' + result.msg);
     }
@@ -276,8 +276,9 @@ function sendTransaction(data, transaction, forceToken, saveToken) {
 }
 
 function getDengageToken(forceFetch, saveToken) {
-    forceFetch = forceFetch || false;
-    saveToken = saveToken || true;
+    forceFetch = forceFetch === null ? false : forceFetch;
+    saveToken = saveToken === null ? true : saveToken;
+
     var token = Site.getCurrent().getCustomPreferenceValue('dengage_token') || null;
     if (!token || forceFetch) {
         var service = dengageServices.getToken();
