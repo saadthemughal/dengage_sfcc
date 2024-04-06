@@ -24,7 +24,7 @@ server.get('Product', function (req, res, next) {
     var productVariantId = '';
     var productPrices = dengageUtils.getProductPrice(product);
     var unitPrice = productPrices.listPrice;
-    var discountedPrice = productPrices.salePrice;
+    var discountedPrice = productPrices.salePrice || productPrices.listPrice;
     if (!product.master && 'masterProduct' in product) {
         productId = product.masterProduct.ID;
         productVariantId = product.ID;
