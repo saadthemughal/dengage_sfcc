@@ -104,7 +104,7 @@ module.exports = function () {
                     dengageOrderStatus = 'success';
 
                 var validPaymentMethods = ['cash', 'bank_transfer', 'credit_card', 'debit_card', 'mobile_payment', 'check', 'prepaid_card', 'crypto', 'cod', 'online_payment'];
-                var orderCreationDate = dw.util.StringUtils.formatCalendar(new dw.util.Calendar(new Date(order.creationDate)), 'yyyy-MM-dd');
+                var orderCreationDate = dw.util.StringUtils.formatCalendar(new dw.util.Calendar(new Date(order.creationDate)), 'yyyy-MM-dd hh:mm:ss');
 
                 var orderTotals = dengageUtils.getOrderTotals(order);
                 var totalBeforeDiscount = orderTotals.totalBeforeDiscount;
