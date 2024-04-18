@@ -37,7 +37,7 @@ var dnTransactionUrls = {
     'customer': '/rest/bulk/contacts',
     'login': '/rest/login'
 }
-var dnContactColumns = ["contact_key", "name", "surname", "contact_status", "email", "email_permission", "gsm_permission", "birth_date", "subscription_date", "gsm", "gender"];
+var dnContactColumns = ["contact_key", "name", "surname", "city", "country", "contact_status", "email", "email_permission", "gsm_permission", "birth_date", "subscription_date", "gsm", "gender"];
 var dnCategoryColumns = ["category_id", "category_path"];
 var dnBaseUrl = 'https://dev-api.dengage.com';
 var dnEventUrl = 'https://dev-event.dengage.com/api/web/event';
@@ -211,9 +211,10 @@ function trackEvent(data, event, customerEmail) {
 }
 
 // AV: Idea is to use this function to send data to create transactions in Dengage
-function sendTransaction(data, transaction, forceToken, saveToken) {
+function sendTransaction(data, transaction, forceToken, saveToken, returnRecords) {
     forceToken = forceToken === null ? false : forceToken;
     saveToken = saveToken === null ? true : saveToken;
+    returnRecords = returnRecords === null ? false : returnRecords;
 
     var service = dengageServices.sendTransaction();
 
@@ -266,6 +267,9 @@ function sendTransaction(data, transaction, forceToken, saveToken) {
 
     if (result.ok) {
         logger.info(transaction + ' data sent to Dengage successfully. Response : ' + JSON.stringify(result.object));
+        if (returnRecords) {
+            return { success: true, insertedRecords: result.object.data.inserted, updatedRecords: result.object.data.updated };
+        }
         return true;
     } else if (!result.ok && !forceToken && (result.error == 403 || result.error == 401)) {
         sendTransaction(data, transaction, true, saveToken);

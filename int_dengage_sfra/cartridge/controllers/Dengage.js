@@ -55,6 +55,8 @@ server.post('Subscriber', function (req, res, next) {
         dengageCustomer.surname = '';
         dengageCustomer.source = 'newsletter';
         dengageCustomer.contact_status = 'A';
+        dengageCustomer.city = '';
+        dengageCustomer.country = '';
         dengageCustomer.email = email;
         dengageCustomer.email_permission = true;
         dengageCustomer.gsm_permission = false;
@@ -65,12 +67,21 @@ server.post('Subscriber', function (req, res, next) {
 
         dengageCustomers.push(dengageCustomer);
 
-        dengageUtils.sendTransaction(dengageCustomers, 'customer', true, false);
+        var transactionResponse = dengageUtils.sendTransaction(dengageCustomers, 'customer', true, false, true);
+        if (transactionResponse.updatedRecords && transactionResponse.updatedRecords.length) {
+            response.message = 'You are already subscribed to the newsletter!';
+            response.isExistingSubscriber = true;
+        }
+        else {
+            response.message = 'You have been subscribed to the newsletter!';
+            response.isExistingSubscriber = false;
+        }
 
         response.success = true;
     } else {
         response.success = false;
-        response.error = 'Please enter a valid email address';
+        response.message = 'Please enter a valid email address';
+        response.isExistingSubscriber = null;
     }
 
     res.json(response);

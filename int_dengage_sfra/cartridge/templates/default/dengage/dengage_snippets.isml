@@ -2,18 +2,31 @@
     var dengageUtils = require('*/cartridge/scripts/dengage/utils');
 </isscript>
 <isscript>
-    if (pdict.category && dengageUtils.dengageEnabled) {
-        var dengageCategoryPath = dengageUtils.getCategoryPath(pdict.category);
+    var pageCategory = pdict.category;
+    var cgId = request.httpParameterMap.cgid.stringValue;
+    var isCategoryPage = pageCategory || cgId;
+    if (isCategoryPage && dengageUtils.dengageEnabled) {
+        if (!pageCategory && cgId) {
+            var dengageCatalogMgr = require('dw/catalog/CatalogMgr');
+            pageCategory = dengageCatalogMgr.getCategory(cgId);
+        }
+        var dengageCategoryPath = dengageUtils.getCategoryPath(pageCategory);
     }
 </isscript>
 <isscript>
     var dengageOrderStorefront = pdict.currentOrder || pdict.order;
     var dengageOrderNumber = '';
     var dengageOrder = null;
+    var dengageOrderDate = null;
     if (dengageUtils.dengageEnabled && dengageOrderStorefront) {
         var dengageOrderMgr = require('dw/order/OrderMgr');
         dengageOrderNumber = dengageOrderStorefront.orderNo || dengageOrderStorefront.orderNumber;
         dengageOrder = dengageOrderMgr.getOrder(dengageOrderNumber);
+        try {
+            dengageOrderDate = dw.util.StringUtils.formatCalendar(new dw.util.Calendar(new Date(dengageOrder.creationDate)), 'yyyy-MM-dd hh:mm:ss');
+        } catch (e) {
+            dengageOrderDate = null;
+        }
         if (dengageOrder.productLineItems) {
             var dengageProductLines = [];
             try {
@@ -107,10 +120,11 @@
         if (pageElement) {
             pageAction = pageElement.getAttribute('data-action');
         }
-        var isHomepage = document.querySelector('.homepage') != null;
+        var isHomepage = document.querySelector('.homepage') != null || document.querySelector('#homepage') != null;
         var pageName = window.location.pathname.split("/").pop();
         pageName = pageName ? pageName.toLowerCase() : '';
         var isCheckout = pageName == 'checkout' || pageName == 'checkout-begin';
+        var isCartPage = pageName == 'cart';
         if (pageAction == 'Product-Show') {
             <isif condition="${pdict.product !== null}">
                 let salePrice = ${pdict.product.price.sales.value};
@@ -120,10 +134,10 @@
                 </isif>
                 let dengageUnitPrice = listPrice ? Math.round(listPrice) : Math.round(salePrice);
                 let dengageDiscountedPrice = salePrice && salePrice < listPrice ? Math.round(salePrice) : '';
-                <isif condition = "${pdict.product && !pdict.product.readyToOrder}">
-                    let dengageProductAvailability = 0; 
-                <iselse/>
+                <isif condition = "${pdict.product && pdict.product.available}">
                     let dengageProductAvailability = 1; 
+                <iselse/>
+                    let dengageProductAvailability = 0; 
                 </isif>
                 var productSkuKey = "${pdict.product.skuKey || pdict.product.id}";
                 dengage("ec:pageView", {
@@ -138,7 +152,7 @@
             var cgId = '${request.httpParameterMap.cgid.stringValue}';
             if (cgId && cgId != 'null') {
                 let dengageCategoryPath = "${dengageCategoryPath}";
-                dengageCategoryPath = dengageCategoryPath.replace('&gt;', '>');
+                dengageCategoryPath = dengageCategoryPath.replaceAll('&gt;', '>');
                 dengage("ec:pageView", {
                     page_type: "category",
                     category_id: cgId,
@@ -161,6 +175,11 @@
             dengage("ec:pageView", {
                 page_type: "home"
             });
+        } else if (pageAction == 'Cart-Show' || isCartPage) {
+            dengage("ec:pageView", {
+                page_type: "cart"
+                
+            });  
         } else if (isCheckout) {
             var siteName = "${dw.system.Site.current.ID}";
             var url = '/on/demandware.store/Sites-' + siteName + '-Site/default/Dengage-Basket';
@@ -240,7 +259,7 @@
                                         if (discountedPrice >= unitPrice)
                                             discountedPrice = '';
                                         dengage('ec:addToCart', {
-                                            product_id: val.skuKey || val.id,
+                                            product_id: val.skuKey || val.gtmData.id,
                                             product_variant_id: productId,
                                             quantity: quantity,
                                             unit_price: unitPrice,
@@ -294,7 +313,7 @@
                                         else if (previousQuantity < quantity)
                                             eventType = 'ec:addToCart';
                                         dengage(eventType, {
-                                            product_id: val.skuKey || val.id,
+                                            product_id: val.skuKey || val.gtmData.id,
                                             product_variant_id: productId,
                                             quantity: quantity,
                                             unit_price: unitPrice,
@@ -305,6 +324,7 @@
                             }
                         });
                     } else if (options.url.includes("Wishlist-AddProduct")) {
+                        <isif condition="${session.customerAuthenticated === true}">
                         let data = convertDataToJSON(options.data);
                         let productId = data.pid;
                         var siteName = "${dw.system.Site.current.ID}";
@@ -326,7 +346,9 @@
                                 }
                             }
                         });
+                        </isif>
                     } else if (options.url.includes("Wishlist-RemoveProduct")) {
+                        <isif condition="${session.customerAuthenticated === true}">
                         let queryParams = options.url.substr(options.url.indexOf("?") + 1);
                         let data = convertDataToJSON(queryParams);
                         let productId = data.pid;
@@ -349,6 +371,7 @@
                                 }
                             }
                         });
+                        </isif>
                     } else if (options.url.includes("NotifyCustomer-NotifyMe")) {
                         let queryParams = options.url.substr(options.url.indexOf("?") + 1);
                         let data = convertDataToJSON(queryParams);
@@ -398,15 +421,22 @@
                 coupon_code: "${dengageOrder.couponLineItems.length ? dengageOrder.couponLineItems[0].couponCode : ''}",
                 cartItems: []
             };
+            <isif condition="${dengageOrderDate}">
+                orderObj.event_date = "${dengageOrderDate}";
+            </isif>
             let dengageCartItems = [];
             <isloop iterator="${dengageProductLines}" alias="lineItem" status="orderItemsLoop">
-                dengageCartItems[${orderItemsLoop.index}] = {
+                var dengageCartItem = {
                     product_id: "${lineItem.product_id}",
                     product_variant_id: "${lineItem.product_variant_id}",
                     quantity: ${lineItem.quantity},
                     unit_price: ${lineItem.unit_price},
                     discounted_price: ${lineItem.discounted_price}
                 };
+                <isif condition="${dengageOrderDate}">
+                    dengageCartItem.event_date = "${dengageOrderDate}";
+                </isif>
+                dengageCartItems[${orderItemsLoop.index}] = dengageCartItem;
             </isloop>
             if (orderObj.order_id && dengageCartItems.length) {
                 orderObj.cartItems = dengageCartItems;

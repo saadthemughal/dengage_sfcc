@@ -132,6 +132,8 @@ module.exports = function () {
                 if (!order.customer || !order.customer.registered) {
                     try {
                         var dengageCustomer = {};
+                        var country = order.billingAddress.countryCode.displayValue;
+                        if (!country) country = '';
                         dengageCustomer.contact_key = order.customerEmail;
                         dengageCustomer.name = order.billingAddress.firstName;
                         dengageCustomer.surname = order.billingAddress.lastName || '';
@@ -143,7 +145,8 @@ module.exports = function () {
                         dengageCustomer.gsm = order.billingAddress.phone;
                         // dengageCustomer.address1_addressid = 'N/A';
                         // dengageCustomer.address1_city = order.billingAddress.city;
-                        // dengageCustomer.address1_country = order.billingAddress.countryCode.displayValue;
+                        dengageCustomer.city = order.billingAddress.city;
+                        dengageCustomer.country = country;
                         // dengageCustomer.address1_line1 = order.billingAddress.address1;
                         // dengageCustomer.address1_line2 = order.billingAddress.address2;
                         // dengageCustomer.address1_line3 = '';
