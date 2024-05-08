@@ -38,7 +38,7 @@ var dnTransactionUrls = {
     'customer': '/rest/bulk/contacts',
     'login': '/rest/login'
 }
-var dnContactColumns = ["contact_key", "name", "surname", "contact_status", "email", "email_permission", "gsm_permission", "birth_date", "subscription_date", "gsm", "gender"];
+var dnContactColumns = ["contact_key", "name", "surname", "city", "country", "contact_status", "email", "email_permission", "gsm_permission", "birth_date", "subscription_date", "gsm", "gender"];
 var dnCategoryColumns = ["category_id", "category_path"];
 var dnBaseUrl = 'https://dev-api.dengage.com';
 var dnEventUrl = 'https://dev-event.dengage.com/api/web/event';
@@ -212,12 +212,14 @@ function trackEvent(data, event, customerEmail) {
 }
 
 // AV: Idea is to use this function to send data to create transactions in Dengage
-function sendTransaction(data, transaction, forceToken) {
-    forceToken = forceToken || false;
+function sendTransaction(data, transaction, forceToken, saveToken, returnRecords) {
+    forceToken = forceToken === null ? false : forceToken;
+    saveToken = saveToken === null ? true : saveToken;
+    returnRecords = returnRecords === null ? false : returnRecords;
 
     var service = dengageServices.sendTransaction();
 
-    var dengageToken = getDengageToken(forceToken);
+    var dengageToken = getDengageToken(forceToken, saveToken);
     if (!dengageToken) {
         logger.error('Failed to fetch Dengage Token when trying to send transaction: ' + transaction);
         return false;
@@ -241,10 +243,11 @@ function sendTransaction(data, transaction, forceToken) {
             orders: data
         }
     } else if (transaction == 'customer') {
+        var contactColumns = data.length ? Object.keys(data[0]) : dnContactColumns;
         requestObj.data = {
             insertIfNotExists: true,
             throwExceptionIfInvalidRecord: true,
-            columns: dnContactColumns,
+            columns: contactColumns,
             contactDatas: data
         }
     } else if (transaction == 'category') {
@@ -265,17 +268,22 @@ function sendTransaction(data, transaction, forceToken) {
 
     if (result.ok) {
         logger.info(transaction + ' data sent to Dengage successfully. Response : ' + JSON.stringify(result.object));
+        if (returnRecords) {
+            return { success: true, insertedRecords: result.object.data.inserted, updatedRecords: result.object.data.updated };
+        }
         return true;
     } else if (!result.ok && !forceToken && (result.error == 403 || result.error == 401)) {
-        sendTransaction(data, transaction, true);
+        sendTransaction(data, transaction, true, saveToken);
     } else {
         logger.error('Failed to send ' + transaction + ' data to Dengage due to unknown error: ' + result.errorMessage + ' and additional info: ' + result.msg);
     }
     return false;
 }
 
-function getDengageToken(forceFetch) {
-    var forceFetch = forceFetch || false;
+function getDengageToken(forceFetch, saveToken) {
+    forceFetch = forceFetch === null ? false : forceFetch;
+    saveToken = saveToken === null ? true : saveToken;
+
     var token = Site.getCurrent().getCustomPreferenceValue('dengage_token') || null;
     if (!token || forceFetch) {
         var service = dengageServices.getToken();
@@ -292,9 +300,11 @@ function getDengageToken(forceFetch) {
             var response = result.object;
             if (response.access_token) {
                 token = response.access_token;
-                Transaction.wrap(function () {
-                    Site.getCurrent().setCustomPreferenceValue('dengage_token', token);
-                });
+                if (saveToken) {
+                    Transaction.wrap(function () {
+                        Site.getCurrent().setCustomPreferenceValue('dengage_token', token);
+                    });
+                }
                 logger.error('Dengage token fetched successfully : ' + token);
             } else if (response == null) {
                 logger.error('dengageServices.getDengageToken call returned null result');
@@ -306,6 +316,19 @@ function getDengageToken(forceFetch) {
         }
     }
     return token;
+}
+
+function validateEmail(email) {
+    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailPattern.test(StringUtils.trim(email));
+}
+
+function getDate() {
+    var tzString = System.getInstanceTimeZone();
+    var calendar = new Calendar();
+    calendar.setTimeZone(tzString);
+    var formattedDate = StringUtils.formatCalendar(calendar, 'yyyy-MM-dd');
+    return formattedDate;
 }
 
 function getTime() {
@@ -478,6 +501,8 @@ module.exports = {
     trackEvent: trackEvent,
     sendTransaction: sendTransaction,
     getDengageToken: getDengageToken,
+    validateEmail: validateEmail,
+    getDate: getDate,
     getTime: getTime,
     getTimestamp: getTimestamp,
     getStock: getStock,

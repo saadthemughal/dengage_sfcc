@@ -29,10 +29,13 @@ module.exports = function () {
                     productLineItem = productLineItems[j];
 
                     // Get the product secondary name
-                    var lineItemProduct = productLineItem.product;
-                    var productDetail = ProductMgr.getProduct(lineItemProduct.ID);
+                    var lineItemID = productLineItem.product ? productLineItem.product.ID : productLineItem.productID;
+                    if (!lineItemID) {
+                        throw new Error('Invalid product line item (missing product ID) found when sending order data for Order # ' + order.orderNo);
+                    }
+                    var productDetail = ProductMgr.getProduct(lineItemID);
                     if (!productDetail) {
-                        throw new Error('Product with ID [' + lineItemProduct.ID + '] not found');
+                        throw new Error('Product with ID [' + lineItemID + '] not found');
                     }
 
                     var productId = productLineItem.productID;
@@ -129,6 +132,8 @@ module.exports = function () {
                 if (!order.customer || !order.customer.registered) {
                     try {
                         var dengageCustomer = {};
+                        var country = order.billingAddress.countryCode.displayValue;
+                        if (!country) country = '';
                         dengageCustomer.contact_key = order.customerEmail;
                         dengageCustomer.name = order.billingAddress.firstName;
                         dengageCustomer.surname = order.billingAddress.lastName || '';
@@ -140,7 +145,8 @@ module.exports = function () {
                         dengageCustomer.gsm = order.billingAddress.phone;
                         // dengageCustomer.address1_addressid = 'N/A';
                         // dengageCustomer.address1_city = order.billingAddress.city;
-                        // dengageCustomer.address1_country = order.billingAddress.countryCode.displayValue;
+                        dengageCustomer.city = order.billingAddress.city;
+                        dengageCustomer.country = country;
                         // dengageCustomer.address1_line1 = order.billingAddress.address1;
                         // dengageCustomer.address1_line2 = order.billingAddress.address2;
                         // dengageCustomer.address1_line3 = '';

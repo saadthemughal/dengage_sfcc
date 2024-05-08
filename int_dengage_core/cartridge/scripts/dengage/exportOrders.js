@@ -54,7 +54,7 @@ function exportOrdersFile(options) {
                 var order = searchOrders.next();
                 var orderMapping = new OrderMapping();
                 var dengageOrder = orderMapping.execute(order);
-                if (dengageOrder)
+                if (dengageOrder && dengageOrder.order_id)
                     dengageOrders.push(dengageOrder);
                 if (dengageOrder && dengageOrder.dengageCustomer)
                     dengageCustomers.push(dengageOrder.dengageCustomer);
