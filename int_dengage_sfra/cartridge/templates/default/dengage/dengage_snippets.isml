@@ -7,13 +7,25 @@
     }
 </isscript>
 <isscript>
-    if (dengageUtils.dengageEnabled && pdict.currentOrder) {
-        if (pdict.currentOrder.productLineItems) {
+    var dengageOrderStorefront = pdict.currentOrder || pdict.order;
+    var dengageOrderNumber = '';
+    var dengageOrder = null;
+    var dengageOrderDate = null;
+    if (dengageUtils.dengageEnabled && dengageOrderStorefront) {
+        var dengageOrderMgr = require('dw/order/OrderMgr');
+        dengageOrderNumber = dengageOrderStorefront.orderNo || dengageOrderStorefront.orderNumber;
+        dengageOrder = dengageOrderMgr.getOrder(dengageOrderNumber);
+        try {
+            dengageOrderDate = dw.util.StringUtils.formatCalendar(new dw.util.Calendar(new Date(dengageOrder.creationDate)), 'yyyy-MM-dd hh:mm:ss');
+        } catch (e) {
+            dengageOrderDate = null;
+        }
+        if (dengageOrder.productLineItems) {
             var dengageProductLines = [];
             try {
                 var dengageProductMgr = require('dw/catalog/ProductMgr');
-                for (var j in pdict.currentOrder.productLineItems) {
-                    productLineItem = pdict.currentOrder.productLineItems[j];
+                for (var j in dengageOrder.productLineItems) {
+                    productLineItem = dengageOrder.productLineItems[j];
                     // Get the product secondary name
                     var lineItemProduct = productLineItem.product;
                     var productDetail = dengageProductMgr.getProduct(lineItemProduct.ID);
@@ -47,11 +59,11 @@
         var dengageOrderTotalAmount = 0;
         var dengageOrderDiscountedAmount = 0;
         try {
-            var dengageOrderTotals = dengageUtils.getOrderTotals(pdict.currentOrder);
+            var dengageOrderTotals = dengageUtils.getOrderTotals(dengageOrder);
             dengageOrderTotalAmount = dengageOrderTotals.totalBeforeDiscount;
             dengageOrderDiscountedAmount = dengageOrderTotals.totalAfterDiscount;
         } catch(e) {
-            dengageOrderTotalAmount = pdict.currentOrder.totalGrossPrice.value;
+            dengageOrderTotalAmount = dengageOrder.totalGrossPrice.value;
             dengageOrderDiscountedAmount = 0;
         }
     }
@@ -90,9 +102,9 @@
         }(window, document);
         dengage('initialize');
     </script>
-    <isif condition="${session.customerAuthenticated === true}">
+    <isif condition="${session.customer.authenticated && customer && customer.profile}">
         <script>
-            dengage("setContactKey", "${session.customer.profile.email}");
+            dengage("setContactKey", "${customer.profile.email}");
         </script>
     </isif>
     <script>
@@ -297,30 +309,39 @@
             });
         });
     </script>
-    <isif condition="${pdict.currentOrder}">
+    <isif condition="${dengageOrder !== null}">
         <script>
-            dengage("setContactKey", "${pdict.currentOrder.customerEmail}");
+            <isif condition="${dengageOrder.customerEmail}">
+                dengage("setContactKey", "${dengageOrder.customerEmail}");
+            </isif>
             let orderObj = {
-                order_id: "${pdict.currentOrder.orderNo}",
-                item_count: ${pdict.currentOrder.productQuantityTotal},
+                order_id: "${dengageOrder.orderNo}",
+                item_count: ${dengageOrder.productQuantityTotal},
                 total_amount: ${dengageOrderTotalAmount},
                 discounted_price: ${dengageOrderDiscountedAmount},
-                payment_method: "${pdict.currentOrder.paymentInstruments.length ? pdict.currentOrder.paymentInstruments[0].paymentMethod : ''}",
-                shipping: ${pdict.currentOrder.adjustedShippingTotalPrice.value},
-                coupon_code: "${pdict.currentOrder.couponLineItems.length ? pdict.currentOrder.couponLineItems[0].couponCode : ''}",
+                payment_method: "${dengageOrder.paymentInstruments.length ? dengageOrder.paymentInstruments[0].paymentMethod : ''}",
+                shipping: ${dengageOrder.adjustedShippingTotalPrice.value},
+                coupon_code: "${dengageOrder.couponLineItems.length ? dengageOrder.couponLineItems[0].couponCode : ''}",
                 cartItems: []
             };
+            <isif condition="${dengageOrderDate}">
+                orderObj.event_date = "${dengageOrderDate}";
+            </isif>
             let dengageCartItems = [];
             <isloop iterator="${dengageProductLines}" alias="lineItem" status="orderItemsLoop">
-                dengageCartItems[${orderItemsLoop.index}] = {
+                var dengageCartItem = {
                     product_id: "${lineItem.product_id}",
                     product_variant_id: "${lineItem.product_variant_id}",
                     quantity: ${lineItem.quantity},
                     unit_price: ${lineItem.unit_price},
                     discounted_price: ${lineItem.discounted_price}
                 };
+                <isif condition="${dengageOrderDate}">
+                    dengageCartItem.event_date = "${dengageOrderDate}";
+                </isif>
+                dengageCartItems[${orderItemsLoop.index}] = dengageCartItem;
             </isloop>
-            if (dengageCartItems.length) {
+            if (orderObj.order_id && dengageCartItems.length) {
                 orderObj.cartItems = dengageCartItems;
                 dengage("ec:order", orderObj);
             }
