@@ -109,9 +109,9 @@
         }(window, document);
         dengage('initialize');
     </script>
-    <isif condition="${session.customerAuthenticated === true}">
+    <isif condition="${session.customer.authenticated && customer && customer.profile}">
         <script>
-            dengage("setContactKey", "${session.customer.profile.email}");
+            dengage("setContactKey", "${customer.profile.email}");
         </script>
     </isif>
     <script>

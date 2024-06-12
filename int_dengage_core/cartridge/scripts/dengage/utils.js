@@ -38,7 +38,7 @@ var dnTransactionUrls = {
     'customer': '/rest/bulk/contacts',
     'login': '/rest/login'
 }
-var dnContactColumns = ["contact_key", "name", "surname", "city", "country", "contact_status", "email", "email_permission", "gsm_permission", "birth_date", "subscription_date", "gsm", "gender"];
+var dnContactColumns = ["contact_key", "name", "surname", "city", "country", "contact_status", "email", "birth_date", "subscription_date", "gsm", "gender"];
 var dnCategoryColumns = ["category_id", "category_path"];
 var dnBaseUrl = 'https://dev-api.dengage.com';
 var dnEventUrl = 'https://dev-event.dengage.com/api/web/event';
