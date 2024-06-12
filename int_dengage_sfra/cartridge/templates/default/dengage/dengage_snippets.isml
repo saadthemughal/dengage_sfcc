@@ -140,10 +140,10 @@
                     let dengageUnitPrice = listPrice ? listPrice : salePrice;
                     let dengageDiscountedPrice = salePrice && salePrice < listPrice ? salePrice : '';
                 }
-                <isif condition = "${pdict.product && !pdict.product.readyToOrder}">
-                    let dengageProductAvailability = 0; 
-                <iselse/>
+                <isif condition = "${pdict.product && pdict.product.available}">
                     let dengageProductAvailability = 1; 
+                <iselse/>
+                    let dengageProductAvailability = 0; 
                 </isif>
                 var productSkuKey = "${pdict.product.skuKey || pdict.product.id}";
                 dengage("ec:pageView", {

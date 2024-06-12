@@ -334,7 +334,6 @@ function getDate() {
 function getTime() {
     var tzString = System.getInstanceTimeZone();
     var calendar = new Calendar();
-
     calendar.setTimeZone(tzString);
     return calendar.getTime();
 }
